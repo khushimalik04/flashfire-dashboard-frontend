@@ -665,7 +665,7 @@ export default function ProfilePage({
                   value={editingSection === "compliance" ? editData.ssnNumber : (() => {
                     const ssn = data.ssnNumber;
                     if (!ssn || ssn.length < 3) return ssn;
-                    return `***-**-${ssn.slice(-3)}`; // Show only last 3 digits
+                    return `***-**-${ssn}`; // Show only last 3 digits
                   })()}
                   isEditing={editingSection === "compliance"}
                   onValueChange={(value) => setEditData(prev => ({ ...prev, ssnNumber: value }))}
