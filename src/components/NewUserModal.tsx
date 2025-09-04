@@ -472,9 +472,9 @@ useEffect(() => {
       if (!data.preferredLocations.trim()) e.preferredLocations = "Required";
       if (!data.targetCompanies.trim()) e.targetCompanies = "Required";
       
-      // SSN validation - optional but must be empty or exactly 9 digits
-      if (data.ssnNumber && data.ssnNumber.length > 0 && data.ssnNumber.length !== 9) {
-        e.ssnNumber = "SSN must be exactly 9 digits or left empty";
+      // SSN validation - optional but must be empty or exactly 3 digits
+      if (data.ssnNumber && data.ssnNumber.length > 0 && data.ssnNumber.length !== 3) {
+        e.ssnNumber = "SSN must be last 3 digits or left empty";
       }
     } else if (index === 2) {
       // LinkedIn URL - required and must be valid URL
@@ -753,19 +753,19 @@ const handleSubmit = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-200">Additional Information</h3>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <FieldLabel required={false}>SSN Number (Optional - must be exactly 9 digits)</FieldLabel>
+                  <FieldLabel required={false}>SSN Number (Optional - must be last 3 digits)</FieldLabel>
                   <TextInput
                     inputMode="numeric"
-                    maxLength={9}
-                    placeholder="Enter 9-digit SSN or leave empty"
+                    maxLength={3}
+                    placeholder="Enter last 3 digits SSN or leave empty"
                     value={data.ssnNumber}
                     onChange={(e) => {
-                      const digits = digitsOnly(e.target.value).slice(0, 9);
+                      const digits = digitsOnly(e.target.value).slice(0, 3);
                       set({ ssnNumber: digits });
                     }}
                   />
-                  {data.ssnNumber && data.ssnNumber.length > 0 && data.ssnNumber.length !== 9 && (
-                    <p className="mt-2 text-sm text-amber-600 font-medium">SSN must be exactly 9 digits or left empty</p>
+                  {data.ssnNumber && data.ssnNumber.length > 0 && data.ssnNumber.length !== 3 && (
+                    <p className="mt-2 text-sm text-amber-600 font-medium">SSN must be last 3 digits or left empty</p>
                   )}
                   <ErrorText>{errors.ssnNumber}</ErrorText>
                 </div>
