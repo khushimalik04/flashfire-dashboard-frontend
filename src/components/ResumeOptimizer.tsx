@@ -373,7 +373,7 @@ export default function DocumentUpload() {
             <div className="grid grid-cols-12 bg-gray-100 text-sm font-bold px-4 py-3 ">
                 <div className="col-span-6">Title</div>
                 <div className="col-span-2">Category</div>
-                <div className="col-span-2">Created On</div>
+                {/* <div className="col-span-2">Created On</div> */}
                 <div className="col-span-1">Job links</div>
                 <div className="col-span-1 text-right">Quick actions</div>
             </div>
@@ -400,9 +400,9 @@ export default function DocumentUpload() {
                                 </p>
                             </div>
                             <div className="col-span-2">{category}</div>
-                            <div className="col-span-2">
+                            {/* <div className="col-span-2">
                                 {fmtDate(it.createdAt)}
-                            </div>
+                            </div> */}
                             <div className="col-span-1">
                                 {it.jobLink ? (
                                     <a
