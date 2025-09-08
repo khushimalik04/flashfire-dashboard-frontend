@@ -17,8 +17,6 @@ type Entry = {
 const toRawPdfUrl = (url: string | null) =>
   url ? url.replace("/image/upload/", "/raw/upload/") : url;
 
-const fmtDate = (d?: string | Date) =>
-  d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" }) : "—";
 
 // Small download icon (no external deps)
 const DownloadIcon = () => (
@@ -290,7 +288,7 @@ export default function DocumentUpload() {
       onPick: (item: Entry) => void;
     }) => (
       <div className="border rounded-lg overflow-hidden">
-        <div className="grid grid-cols-12 bg-gray-100 text-sm font-bold px-4 py-3 ">
+        <div className="grid grid-cols-10 bg-gray-100 text-sm font-bold px-4 py-3 ">
           <div className="col-span-6">Title</div>
           <div className="col-span-2">Category</div>
           <div className="col-span-1">Job links</div>
@@ -304,7 +302,7 @@ export default function DocumentUpload() {
             {items.map((it, i) => (
               <li
                 key={i}
-                className="grid grid-cols-12 items-center px-4 py-4 hover:bg-gray-50 cursor-pointer"
+                className="grid grid-cols-10 items-center px-4 py-4 hover:bg-gray-50 cursor-pointer"
                 onClick={() => onPick(it)}
                 title="Click to preview"
               >
@@ -314,7 +312,6 @@ export default function DocumentUpload() {
                   </p>
                 </div>
                 <div className="col-span-2">{category}</div>
-                <div className="col-span-2">{fmtDate(it.createdAt)}</div>
                 <div className="col-span-1">
                   {it.jobLink ? (
                     <a
