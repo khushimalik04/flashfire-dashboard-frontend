@@ -581,9 +581,12 @@ useEffect(() => {
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Job Description</h4>
               <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
                 {jobDetails?.jobDescription ? (
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {jobDetails.jobDescription}
-                  </div>
+                  <div className="text-sm text-gray-700 leading-relaxed job-description-html"
+                        
+                                dangerouslySetInnerHTML={{
+                                    __html: jobDetails.jobDescription,
+                                }}
+                            ></div>
                 ) : (
                   <p className="text-gray-500 italic text-sm">No job description available.</p>
                 )}
@@ -867,3 +870,4 @@ useEffect(() => {
     </div>
   );
 }
+
