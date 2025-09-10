@@ -1,5 +1,7 @@
 
 import { Briefcase, FileText, TrendingUp, Users, Target, CheckCircle, XCircle, Clock, Award } from 'lucide-react';
+import ReferralButton from './ReferralButton';
+import ReferralModal from './ReferralModal';
 import React, { useEffect, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserJobs } from '../state_management/UserJobs.tsx';
@@ -25,6 +27,9 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
   const { userJobs, setUserJobs, loading } = useUserJobs();
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Referral Modal State
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
   async function FetchAllJobs(localToken, localUserDetails) {
     try {
@@ -112,14 +117,26 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl lg:text-5xl font-bold font-bold text-gray-900 mb-6 leading-tight">
-            Welcome to Your Career Dashboard
-          </h1>
-          <p className="text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">
-            Track your job applications, monitor your progress, and optimize your career journey with AI-powered insights.
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between text-center mb-12 gap-4">
+          <div>
+            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+              Welcome to Your Career Dashboard
+            </h1>
+            <p className="text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">
+              Track your job applications, monitor your progress, and optimize your career journey with AI-powered insights.
+            </p>
+          </div>
+          <div className="flex justify-center md:justify-end">
+            <ReferralButton onClick={() => setIsReferralModalOpen(true)} />
+          </div>
         </div>
+
+        {/* Referral Modal */}
+        <ReferralModal 
+          isOpen={isReferralModalOpen} 
+          onClose={() => setIsReferralModalOpen(false)} 
+          referralLink={`https://portal.flashfirejobs.com/ref/${userDetails?.userID || userDetails?.email || ''}`}
+        />
         {/* {userDetails.planType === 'Free Trial' && (
   <div className="rounded-2xl p-2 m-4 border-2 absolute w-1/4 top-[10%] left-[70%] border-yellow-400 border-dashed bg-yellow-50 shadow-md">
     <h1 className="text-lg font-semibold text-yellow-800 mb-2">
@@ -296,56 +313,19 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
           {recentJobs.length > 0 ? (
             <div className="space-y-4">
               {recentJobs?.map((job) => {
-                // Determine status key from the same field you use elsewhere
-                const key = (job.updatedAt || 'saved').toLowerCase();
-
-                // Configuration for each status
-                const statusConfig: Record<string, {
-                  color: string;
-                  icon: React.ComponentType<any>;
-                  label: string;
-                }> = {
-                  saved: {
-                    color: 'bg-gray-100 text-gray-700 border-gray-200',
-                    icon: Clock,
-                    label: 'Saved',
-                  },
-                  applied: {
-                    color: 'bg-blue-100 text-blue-700 border-blue-200',
-                    icon: FileText,
-                    label: 'Applied',
-                  },
-                  interviewing: {
-                    color: 'bg-amber-100 text-amber-700 border-amber-200',
-                    icon: Users,
-                    label: 'Interviewing',
-                  },
-                  offer: {
-                    color: 'bg-green-100 text-green-700 border-green-200',
-                    icon: CheckCircle,
-                    label: 'Offer',
-                  },
-                  rejected: {
-                    color: 'bg-red-100 text-red-700 border-red-200',
-                    icon: XCircle,
-                    label: 'Rejected',
-                  },
-                  deleted: {
-                    color: 'bg-gray-100 text-gray-700 border-gray-200',
-                    icon: XCircle,
-                    label: 'Deleted',
-                  },
+                const statusKey = (job.currentStatus || 'saved').toLowerCase();
+                const statusConfig: Record<string, { color: string; icon: React.ComponentType<any>; label: string }> = {
+                  saved: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock, label: 'Saved' },
+                  applied: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: FileText, label: 'Applied' },
+                  interviewing: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Users, label: 'Interviewing' },
+                  offer: { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle, label: 'Offer' },
+                  rejected: { color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle, label: 'Rejected' },
+                  deleted: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: XCircle, label: 'Deleted' },
                 };
-
-                const config = statusConfig[key] || statusConfig.saved;
+                const config = statusConfig[statusKey] || statusConfig.saved;
                 const Icon = config.icon;
-
-                // Parse the ISO timestamp
                 const date = new Date(job.updatedAt);
-                const displayDate = isNaN(date.getTime())
-                  ? 'Invalid Date'
-                  : date.toLocaleDateString();
-
+                const displayDate = isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString();
                 return (
                   <div
                     key={job.jobID}
@@ -375,9 +355,6 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                       >
                         {job.currentStatus}
                       </span>
-                      {/* <p className="text-xs text-gray-500 mt-1">
-                        {job.updatedAt}
-                      </p> */}
                     </div>
                   </div>
                 );
