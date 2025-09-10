@@ -9,7 +9,8 @@ import { UserContext } from '../state_management/UserContext.js';
 import { useUserProfile } from '../state_management/ProfileContext.tsx';
 import LoadingScreen from './LoadingScreen.tsx';
 import { calculateDashboardStats } from '../utils/storage.ts';
-import NewUserModal from './NewUserModal.tsx'
+import NewUserModal from './NewUserModal.tsx';
+import { generateReferralIdentifier } from '../utils/generateUsername.ts';
 
 const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
   const context = useContext(UserContext);
@@ -116,18 +117,23 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between text-center mb-12 gap-4">
-          <div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-              Welcome to Your Career Dashboard
-            </h1>
-            <p className="text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">
+        {/* Header with Referral Button */}
+        <div className="flex flex-col md:flex-row md:items-center mb-12 gap-4">
+          <div className="text-center flex-1 relative">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-center gap-8">
+              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+                Welcome to Your Career Dashboard
+              </h1>
+            </div>
+            <div className="absolute top-0 right-0 hidden md:block">
+              <ReferralButton onClick={() => setIsReferralModalOpen(true)} />
+            </div>
+            <div className="flex justify-center md:hidden mt-4">
+              <ReferralButton onClick={() => setIsReferralModalOpen(true)} />
+            </div>
+            <p className="text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light mt-6">
               Track your job applications, monitor your progress, and optimize your career journey with AI-powered insights.
             </p>
-          </div>
-          <div className="flex justify-center md:justify-end">
-            <ReferralButton onClick={() => setIsReferralModalOpen(true)} />
           </div>
         </div>
 
@@ -135,7 +141,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
         <ReferralModal 
           isOpen={isReferralModalOpen} 
           onClose={() => setIsReferralModalOpen(false)} 
-          referralLink={`https://portal.flashfirejobs.com/ref/${userDetails?.userID || userDetails?.email || ''}`}
+          referralLink={generateReferralIdentifier(userProfile?.firstName, userProfile?.lastName)}
         />
         {/* {userDetails.planType === 'Free Trial' && (
   <div className="rounded-2xl p-2 m-4 border-2 absolute w-1/4 top-[10%] left-[70%] border-yellow-400 border-dashed bg-yellow-50 shadow-md">
