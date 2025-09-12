@@ -749,97 +749,121 @@ export default function JobModal({
                             </p>
                         </div>
 
-                        {/* Card 3: Position */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <div className="flex items-center mb-2">
-                                <Briefcase className="w-4 h-4 text-gray-500 mr-2" />
-                                <span className="text-sm font-medium text-gray-600">
-                                    Position
-                                </span>
-                            </div>
-                            <p className="text-lg font-semibold text-gray-900">
-                                {jobDetails.jobTitle}
-                            </p>
-                        </div>
+            {/* Card 3: Position */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center mb-2">
+                <Briefcase className="w-4 h-4 text-gray-500 mr-2" />
+                <span className="text-sm font-medium text-gray-600">Position</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">{jobDetails.jobTitle}</p>
+            </div>
 
-                        {/* Card 4: Candidate */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <div className="flex items-center mb-2">
-                                <User className="w-4 h-4 text-gray-500 mr-2" />
-                                <span className="text-sm font-medium text-gray-600">
-                                    Candidate
-                                </span>
-                            </div>
-                            <p className="text-lg font-semibold text-gray-900">
-                                {currentUser?.email || jobDetails.userID}
-                            </p>
-                        </div>
-                    </div>
-                );
+            {/* Card 4: Candidate */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center mb-2">
+                <User className="w-4 h-4 text-gray-500 mr-2" />
+                <span className="text-sm font-medium text-gray-600">Candidate</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">
+                {currentUser?.email || jobDetails.userID}
+              </p>
+            </div>
+          </div>
+        );
 
-            case "link":
-                return (
-                    <div className="space-y-4">
-                        <div className="bg-white rounded-lg border border-gray-200 p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-lg font-semibold text-gray-900">
-                                    Job Application Link
-                                </h4>
-                                <div className="flex space-x-2">
-                                    <button
-                                        onClick={() =>
-                                            copyToClipboard(jobDetails.joblink)
-                                        }
-                                        className="flex items-center px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                                    >
-                                        <Copy className="w-4 h-4 mr-1" />
-                                        Copy
-                                    </button>
-                                    <a
-                                        href={jobDetails.joblink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                                    >
-                                        <ExternalLink className="w-4 h-4 mr-1" />
-                                        Open
-                                    </a>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
-                                <code className="text-sm text-gray-700 break-all font-mono">
-                                    {jobDetails.joblink}
-                                </code>
-                            </div>
-                        </div>
-                    </div>
-                );
+      case "link":
+        return (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900">Job Application Link</h4>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => copyToClipboard(jobDetails.joblink)}
+                    className="flex items-center px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy
+                  </button>
+                  <a
+                    href={jobDetails.joblink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    Open
+                  </a>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
+                <code className="text-sm text-gray-700 break-all font-mono">{jobDetails.joblink}</code>
+              </div>
+            </div>
+          </div>
+        );
 
-            case "description":
-                return (
-                    <div className="space-y-4">
-                        <div className="bg-white rounded-lg border border-gray-200 p-6">
-                            <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                                Job Description
-                            </h4>
-                            <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                                {jobDetails?.jobDescription ? (
-                                    <div
-                                        className="text-sm text-gray-700 leading-relaxed job-description-html"
-                                        // Correctly render the HTML from the backend
-                                        dangerouslySetInnerHTML={{
-                                            __html: jobDetails.jobDescription,
-                                        }}
-                                    ></div>
-                                ) : (
-                                    <p className="text-gray-500 italic text-sm">
-                                        No job description available.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                );
+      // case "description":
+      //   return (
+      //     <div className="space-y-4">
+      //       <div className="bg-white rounded-lg border border-gray-200 p-6">
+      //         <h4 className="text-lg font-semibold text-gray-900 mb-4">Job Description</h4>
+      //         <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+      //           {jobDetails?.jobDescription ? (
+      //             <div className="text-sm text-gray-700 leading-relaxed job-description-html"
+                        
+      //                           dangerouslySetInnerHTML={{
+      //                               __html: jobDetails.jobDescription,
+      //                           }}
+      //                       ></div>
+      //           ) : (
+      //             <p className="text-gray-500 italic text-sm">No job description available.</p>
+      //           )}
+      //         </div>
+      //         {jobDetails?.jobDescription.includes(email(axsax@DoorClosed.com))} && ((email(axsax@DoorClosed.com)))}
+      //       </div>
+      //     </div>
+      //   );
+      case "description":
+  const emailMatch = jobDetails?.jobDescription
+    ? jobDetails.jobDescription.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">Job Description</h4>
+        <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+          {jobDetails?.jobDescription ? (
+            <div
+              className="text-sm text-gray-700 leading-relaxed job-description-html"
+              dangerouslySetInnerHTML={{
+                __html: jobDetails.jobDescription,
+              }}
+            ></div>
+          ) : (
+            <p className="text-gray-500 italic text-sm">
+              No job description available.
+            </p>
+          )}
+        </div>
+
+        {/* ✅ Show extracted emails from job description */}
+        {emailMatch && emailMatch.length > 0 && (
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <h5 className="text-sm font-semibold text-yellow-800 mb-2">
+              📧 Emails found in Job Description:
+            </h5>
+            <ul className="list-disc list-inside text-sm text-gray-700">
+              {emailMatch.map((email, idx) => (
+                <li key={idx}>{email}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
             case "attachments":
                 return (
@@ -966,135 +990,110 @@ export default function JobModal({
                                 )}
                             </div>
 
-                            {/* ---- Paste Images (Ctrl+V) ---- */}
-                            <div className="mb-6 rounded-lg border border-orange-200 p-4">
-                                <div className="flex items-center mb-3">
-                                    <UploadIcon className="w-4 h-4 text-orange-600 mr-2" />
-                                    <h4 className="text-sm font-semibold text-orange-700">
-                                        Paste Images (Ctrl+V) — PNG/JPG/WEBP
-                                    </h4>
-                                </div>
+              {/* ---- Paste Images (Ctrl+V) ---- */}
+              <div className="mb-6 rounded-lg border border-orange-200 p-4">
+                <div className="flex items-center mb-3">
+                  <UploadIcon className="w-4 h-4 text-orange-600 mr-2" />
+                  <h4 className="text-sm font-semibold text-orange-700">
+                    Paste Images (Ctrl+V) — PNG/JPG/WEBP
+                  </h4>
+                </div>
 
-                                <div
-                                    onPaste={handlePasteImages}
-                                    className="border-2 border-dashed border-orange-400/70 rounded-lg p-4 min-h-[96px] flex items-center justify-center bg-orange-50"
-                                >
-                                    {pastedPreviews.length ? (
-                                        <div className="w-full">
-                                            <div className="flex flex-wrap gap-2">
-                                                {pastedPreviews.map(
-                                                    (src, idx) => (
-                                                        <img
-                                                            key={idx}
-                                                            src={src}
-                                                            alt={`pasted-${idx}`}
-                                                            className="w-20 h-20 object-cover rounded-md border"
-                                                        />
-                                                    )
-                                                )}
-                                            </div>
+                <div
+                  onPaste={handlePasteImages}
+                  className="border-2 border-dashed border-orange-400/70 rounded-lg p-4 min-h-[96px] flex items-center justify-center bg-orange-50"
+                >
+                  {pastedPreviews.length ? (
+                    <div className="w-full">
+                      <div className="flex flex-wrap gap-2">
+                        {pastedPreviews.map((src, idx) => (
+                          <img
+                            key={idx}
+                            src={src}
+                            alt={`pasted-${idx}`}
+                            className="w-20 h-20 object-cover rounded-md border"
+                          />
+                        ))}
+                      </div>
 
-                                            <div className="mt-3 flex gap-2">
-                                                <button
-                                                    onClick={uploadPastedImages}
-                                                    disabled={isUploadingPasted}
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-600 text-white disabled:opacity-50"
-                                                >
-                                                    {isUploadingPasted ? (
-                                                        <Loader2 className="animate-spin w-4 h-4" />
-                                                    ) : (
-                                                        <UploadIcon className="w-4 h-4" />
-                                                    )}
-                                                    {isUploadingPasted
-                                                        ? "Uploading..."
-                                                        : "Upload pasted images"}
-                                                </button>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={uploadPastedImages}
+                          disabled={isUploadingPasted}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-600 text-white disabled:opacity-50"
+                        >
+                          {isUploadingPasted ? (
+                            <Loader2 className="animate-spin w-4 h-4" />
+                          ) : (
+                            <UploadIcon className="w-4 h-4" />
+                          )}
+                          {isUploadingPasted ? "Uploading..." : "Upload pasted images"}
+                        </button>
 
-                                                <button
-                                                    onClick={() => {
-                                                        pastedPreviews.forEach(
-                                                            (u) =>
-                                                                URL.revokeObjectURL(
-                                                                    u
-                                                                )
-                                                        );
-                                                        setPastedPreviews([]);
-                                                        setPastedImages([]);
-                                                    }}
-                                                    disabled={isUploadingPasted}
-                                                    className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
-                                                >
-                                                    Clear
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-600 text-sm flex items-center">
-                                            <Copy className="w-4 h-4 mr-2" />{" "}
-                                            Copy an image and press{" "}
-                                            <span className="mx-1 font-semibold">
-                                                Ctrl+V
-                                            </span>{" "}
-                                            here
-                                        </p>
-                                    )}
-                                </div>
-
-                                {pasteError && (
-                                    <p className="mt-2 text-sm text-red-600">
-                                        {pasteError}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Image Grid */}
-                            {attachments?.length ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {attachments.map((item, index) => (
-                                        <div
-                                            key={`${item}-${index}`}
-                                            className="relative group cursor-pointer bg-gray-50 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-200"
-                                            onClick={() => {
-                                                setSelectedImage(item);
-                                                setAttachmentsModalActiveStatus(
-                                                    true
-                                                );
-                                            }}
-                                        >
-                                            <img
-                                                src={item}
-                                                alt={`Attachment ${index + 1}`}
-                                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <div className="bg-white rounded-full p-2 shadow-lg">
-                                                        <ArrowRight className="w-5 h-5 text-gray-700" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
-                                                <p className="text-white text-sm font-medium">
-                                                    Attachment {index + 1}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                                    <User className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                                    <h3 className="text-gray-500 font-medium mb-1">
-                                        No attachments yet
-                                    </h3>
-                                    <p className="text-gray-400 text-sm">
-                                        Paste images above to see them here.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                        <button
+                          onClick={() => {
+                            pastedPreviews.forEach((u) => URL.revokeObjectURL(u));
+                            setPastedPreviews([]);
+                            setPastedImages([]);
+                          }}
+                          disabled={isUploadingPasted}
+                          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        >
+                          Clear
+                        </button>
+                      </div>
                     </div>
-                );
+                  ) : (
+                    <p className="text-gray-600 text-sm flex items-center">
+                      <Copy className="w-4 h-4 mr-2" /> Copy an image and press{" "}
+                      <span className="mx-1 font-semibold">Ctrl+V</span> here
+                    </p>
+                  )}
+                </div>
+
+                {pasteError && <p className="mt-2 text-sm text-red-600">{pasteError}</p>}
+              </div>
+
+              {/* Image Grid */}
+              {attachments?.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {attachments.map((item, index) => (
+                    <div
+                      key={`${item}-${index}`}
+                      className="relative group cursor-pointer bg-gray-50 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-200"
+                      onClick={() => {
+                        setSelectedImage(item);
+                        setAttachmentsModalActiveStatus(true);
+                      }}
+                    >
+                      <img
+                        src={item}
+                        alt={`Attachment ${index + 1}`}
+                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="bg-white rounded-full p-2 shadow-lg">
+                            <ArrowRight className="w-5 h-5 text-gray-700" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
+                        <p className="text-white text-sm font-medium">Attachment {index + 1}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <User className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-gray-500 font-medium mb-1">No attachments yet</h3>
+                  <p className="text-gray-400 text-sm">Paste images above to see them here.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
 
             case "timeline":
                 return (
