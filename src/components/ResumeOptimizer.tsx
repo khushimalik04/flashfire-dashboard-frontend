@@ -1,4 +1,4 @@
-import { ArrowLeftCircle, DownloadCloud } from "lucide-react";
+import { ArrowLeftCircle, Trash2 , HardDriveDownload  } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 type PendingType = "optimized" | "coverLetter" | null;
@@ -14,8 +14,29 @@ type Entry = {
 
 // Cloudinary sometimes serves PDFs under `image/upload`.
 // For iframes, we want the original bytes. Convert to `raw/upload`.
-const toRawPdfUrl = (url: string | null) =>
-    url ? url.replace("/image/upload/", "/raw/upload/") : url;
+// Cloudinary sometimes serves PDFs under `image/upload`.
+// For preview (iframe), use `/raw/upload/`
+// For download, add `/fl_attachment/`
+function toRawPdfUrl(
+  resume: string | { url?: string; link?: string },
+  opts: { download?: boolean } = {}
+) {
+  let pdfUrl = "";
+
+  if (typeof resume === "string") {
+    pdfUrl = resume;
+  } else if (resume && typeof resume === "object") {
+    pdfUrl = resume.link || resume.url || "";
+  }
+
+  if (!pdfUrl) return "";
+
+  if (opts.download) {
+    return pdfUrl.replace("/upload/", "/upload/fl_attachment/");
+  }
+  return pdfUrl.replace("/upload/", "/upload/"); // ✅ preview inline
+}
+
 
 const fmtDate = (d?: string | Date) =>
     d
@@ -39,9 +60,9 @@ export default function DocumentUpload() {
         "base"
     );
 
-    const [baseResume, setBaseResume] = useState("");
-    const [optimizedList, setOptimizedList] = useState<Entry[]>([]);
-    const [coverList, setCoverList] = useState<Entry[]>([]);
+  const [baseResume, setBaseResume] = useState([]);
+  const [optimizedList, setOptimizedList] = useState<Entry[]>([]);
+  const [coverList, setCoverList] = useState<Entry[]>([]);
 
     // const [showMetaModal, setShowMetaModal] = useState<PendingType>(null);
     // const [pendingUploadType, setPendingUploadType] = useState<PendingType>(null);
@@ -130,17 +151,41 @@ export default function DocumentUpload() {
         return res.json(); // -> { userDetails: {..., resumeLink, optimizedResumes, coverLetters } }
     };
 
-    // ---- initialization (hydrate from userAuth) ----
-    useEffect(() => {
-        const parsed = readAuth();
-        if (!parsed) return;
-        const u = parsed.userDetails || {};
-        setBaseResume(u.resumeLink || "");
-        setOptimizedList(
-            Array.isArray(u.optimizedResumes) ? u.optimizedResumes : []
-        );
-        setCoverList(Array.isArray(u.coverLetters) ? u.coverLetters : []);
-    }, []);
+  // ---- initialization (hydrate from userAuth) ----
+  // useEffect(() => {
+  //   const parsed = readAuth();
+  //   if (!parsed) return;
+  //   const u = parsed.userDetails || {};
+  //   setBaseResume(u.resumeLink || "");
+  //   setOptimizedList(Array.isArray(u.optimizedResumes) ? u.optimizedResumes : []);
+  //   setCoverList(Array.isArray(u.coverLetters) ? u.coverLetters : []);
+  // }, []);
+
+  useEffect(() => {
+  const parsed = readAuth();
+  if (!parsed) return;
+  const u = parsed.userDetails || {};
+
+  // 🔹 Handle resumeLink migration (string → array of objects)
+  if (Array.isArray(u.resumeLink)) {
+    setBaseResume(u.resumeLink);
+  } else if (typeof u.resumeLink === "string" && u.resumeLink.startsWith("http")) {
+  setBaseResume([
+    {
+      name: u.resumeLink.split("/").pop() || "Imported Resume",
+      createdAt: new Date().toISOString(),
+      link: u.resumeLink,
+      url: u.resumeLink
+    },
+  ]);
+} else {
+  setBaseResume([]);
+}
+
+
+  setOptimizedList(Array.isArray(u.optimizedResumes) ? u.optimizedResumes : []);
+  setCoverList(Array.isArray(u.coverLetters) ? u.coverLetters : []);
+}, []);
 
     // Default preview per tab (only when in preview mode AND no preview selected yet)
     useEffect(() => {
@@ -148,11 +193,10 @@ export default function DocumentUpload() {
         if (activePreviewUrl) return; // don't override a user-selected preview
         setIframeError(null);
 
-        let defaultUrl: string | null = null;
-        if (activeTab === "base") defaultUrl = baseResume || null;
-        else if (activeTab === "optimized")
-            defaultUrl = optimizedList[0]?.url || null;
-        else if (activeTab === "cover") defaultUrl = coverList[0]?.url || null;
+    let defaultUrl: string | null = null;
+if (activeTab === "base") defaultUrl = baseResume[0]?.link || null;
+    else if (activeTab === "optimized") defaultUrl = optimizedList[0]?.url || null;
+    else if (activeTab === "cover") defaultUrl = coverList[0]?.url || null;
 
         setActivePreviewUrl(toRawPdfUrl(defaultUrl));
     }, [
@@ -262,43 +306,59 @@ export default function DocumentUpload() {
             const parsed = readAuth();
             if (!parsed) return;
 
-            const payload = {
-                token: parsed.token,
-                userDetails: parsed.userDetails,
-                resumeLink: uploadedURL, // base resume (no metadata)
-            };
+  const payload = {
+    token: parsed.token,
+    userDetails: parsed.userDetails,
+    resumeLink: newEntry, // ✅ always array now
+  };
+  console.log('Payload for base resume upload:', payload);
+  const backendData = await persistToBackend(payload);
+  const serverUser = backendData.userDetails || parsed.userDetails;
 
-            const backendData = await persistToBackend(payload);
-            const serverUser = backendData.userDetails || parsed.userDetails;
+  writeAuth(serverUser, parsed.token);
+  setBaseResume(serverUser.resumeLink);
+};
+const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover") => {
+  const DELETE_PASSCODE = import.meta.env.VITE_EDIT_PASSCODE; // simple hardcoded passcode for demo
+  const input = prompt("Enter passcode to delete:");
+  if (!input || input !== DELETE_PASSCODE) {
+    alert("❌ Wrong passcode. Deletion cancelled.");
+    return;
+  }
 
-            // Persist and hydrate from server (merge style)
-            writeAuth(serverUser, parsed.token);
+  const parsed = readAuth();
+  if (!parsed) return;
 
-            setBaseResume(serverUser.resumeLink || uploadedURL);
-            setOptimizedList(
-                Array.isArray(serverUser.optimizedResumes)
-                    ? serverUser.optimizedResumes
-                    : []
-            );
-            setCoverList(
-                Array.isArray(serverUser.coverLetters)
-                    ? serverUser.coverLetters
-                    : []
-            );
-
-            // Show preview immediately (ensure raw URL)
-            setPreviewMode(true);
-            setActivePreviewUrl(
-                toRawPdfUrl(serverUser.resumeLink || uploadedURL)
-            );
-            setIframeError(null);
-
-            alert("✅ Base resume uploaded successfully!");
-        } catch (err) {
-            console.error(err);
-            alert("Upload failed.");
-        }
+  try {
+    const payload: any = {
+      token: parsed.token,
+      userDetails: parsed.userDetails,
     };
+
+    if (category === "base") {
+      payload.deleteBaseResume = item; // backend should know how to handle
+    } else if (category === "optimized") {
+      payload.deleteOptimizedResume = item;
+    } else if (category === "cover") {
+      payload.deleteCoverLetter = item;
+    }
+
+    const backendData = await persistToBackend(payload);
+    const serverUser = backendData.userDetails || parsed.userDetails;
+
+    // Update local auth + state
+    writeAuth(serverUser, parsed.token);
+    setBaseResume(serverUser.resumeLink || []);
+    setOptimizedList(Array.isArray(serverUser.optimizedResumes) ? serverUser.optimizedResumes : []);
+    setCoverList(Array.isArray(serverUser.coverLetters) ? serverUser.coverLetters : []);
+
+    alert("✅ Document deleted successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("❌ Failed to delete document.");
+  }
+};
+
 
     // // Save with or without metadata
     // const handleMetadataSubmit = async (e?: React.FormEvent<HTMLFormElement>, skip = false) => {
@@ -368,75 +428,77 @@ export default function DocumentUpload() {
         category: "Resume" | "Cover Letter" | "Base";
         onPick: (item: Entry) => void;
     }) => (
-        <div className="border rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 bg-gray-100 text-sm font-bold px-4 py-3 ">
-                <div className="col-span-6">Title</div>
-                <div className="col-span-2">Category</div>
-                {/* <div className="col-span-2">Created On</div> */}
-                <div className="col-span-1">Job links</div>
-                <div className="col-span-1 text-right">Quick actions</div>
-            </div>
-
-            {items.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-gray-500">
-                    No documents yet.
-                </div>
-            ) : (
-                <ul className="divide-y flex flex-col flex-col-reverse">
-                    {items.map((it, i) => (
-                        <li
-                            key={i}
-                            className="grid grid-cols-12 items-center px-4 py-4 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => onPick(it)}
-                            title="Click to preview"
-                        >
-                            <div className="col-span-6 min-w-0">
-                                <p className="truncate">
-                                    {it.jobRole || "—"}
-                                    {it.companyName
-                                        ? ` at ${it.companyName}`
-                                        : ""}
-                                </p>
-                            </div>
-                            <div className="col-span-2">{category}</div>
-                            {/* <div className="col-span-2">
-                                {fmtDate(it.createdAt)}
-                            </div> */}
-                            <div className="col-span-1">
-                                {it.jobLink ? (
-                                    <a
-                                        href={
-                                            it.jobLink.startsWith("http")
-                                                ? it.jobLink
-                                                : `https://${it.jobLink}`
-                                        }
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline"
-                                    >
-                                        Click Here
-                                    </a>
-                                ) : (
-                                    "--"
-                                )}
-                            </div>
-                            <div className="col-span-1 flex justify-end">
-                                <a
-                                    href={toRawPdfUrl(it.url) || it.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-gray-700 hover:text-blue-600"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Download"
-                                >
-                                    <DownloadIcon />
-                                </a>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="grid grid-cols-10 bg-gray-100 text-sm font-bold px-4 py-3 ">
+          <div className="col-span-6">Title</div>
+          <div className="col-span-2">Category</div>
+{(activeTab !== "base" && activeTab !== "cover") && (
+  <div className="col-span-1">Job links</div>
+)}
+          <div className="col-span-1 text-right">Quick actions</div>
         </div>
+
+        {items.length === 0 ? (
+          <div className="px-4 py-6 text-sm text-gray-500">No documents yet.</div>
+        ) : (
+          <ul className="divide-y flex flex-col flex-col-reverse">
+            {items.map((it, i) => (
+              <li
+                key={i}
+                className="grid grid-cols-10 items-center px-4 py-4 hover:bg-gray-50 cursor-pointer"
+                onClick={() => onPick(it)}
+                title="Click to preview"
+              >
+                <div className="col-span-6 min-w-0">
+  <p className="truncate">
+    {category === "Base"
+      ? (it.name || "Unnamed Resume")   // ✅ show stored name
+      : `${it.jobRole || "—"} at ${it.companyName || "—"}`}
+  </p>
+</div>
+                <div className="col-span-2">{category}</div>
+                <div className="col-span-1">
+                  {it.jobLink ? (
+                    <a
+                      href={it.jobLink.startsWith('http') ? it.jobLink : `https://${it.jobLink}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Click Here
+                    </a>
+                  ) : (
+                    ''
+                  )}
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <a
+                    href={toRawPdfUrl(it?.url) || it.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-gray-700 hover:text-blue-600 p-2"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Download"
+                  >
+                    <HardDriveDownload className="text-gray-700 hover:text-blue-600 m-2 "  />
+                  </a>
+
+                  <button
+  onClick={(e) => {
+    e.stopPropagation(); // prevent triggering preview
+    handleDelete(it, category === "Base" ? "base" : category === "Resume" ? "optimized" : "cover");
+  }}
+  className="text-gray-600-600 hover:text-red-600 m-2 "
+  title="Delete"
+>
+  <Trash2 className="size-5" />
+</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     );
 
     // ---- Reusable Preview Panel (iframe) ----
@@ -508,7 +570,7 @@ export default function DocumentUpload() {
                                 }`}
                                 onClick={() => {
                                     setActiveTab("base");
-                                    setPreviewMode(true);
+                                    setPreviewMode(false);
                                     setActivePreviewUrl(null);
                                 }}
                             >
@@ -559,9 +621,10 @@ export default function DocumentUpload() {
                                     {baseResume && previewMode && (
                                         <button
                                             className="px-3 py-1.5 rounded bg-blue-500 hover:bg-blue-700 text-white text-sm"
-                                            onClick={() =>
-                                                setPreviewMode(false)
-                                            }
+                                            onClick={() =>{
+                                                setActiveTab('base');
+                                                setPreviewMode(false);
+                                            }}
                                         >
                                             <ArrowLeftCircle />
                                             View All Docs
@@ -570,27 +633,16 @@ export default function DocumentUpload() {
                                 </div>
 
                                 {baseResume && previewMode ? (
-                                    <PreviewPanel
-                                        url={
-                                            toRawPdfUrl(
-                                                activePreviewUrl || baseResume
-                                            ) as string
-                                        }
-                                        onChange={() => setPreviewMode(false)}
-                                    />
+                                   <PreviewPanel
+  url={toRawPdfUrl(activePreviewUrl)} // 👈 no download flag, pure preview
+  onChange={() => setPreviewMode(true)}
+/>
                                 ) : (
                                     <>
                                         {/* Base table (single row if exists) */}
                                         {baseResume ? (
                                             <DocsTable
-                                                items={[
-                                                    {
-                                                        jobRole: "Base Resume",
-                                                        companyName: "",
-                                                        url: baseResume,
-                                                        createdAt: undefined,
-                                                    },
-                                                ]}
+                                                items={Array.isArray(baseResume) ? baseResume : [baseResume]}
                                                 category="Base"
                                                 onPick={(it) => {
                                                     setActivePreviewUrl(
@@ -874,33 +926,33 @@ export default function DocumentUpload() {
                               />
                           </div>
 
-                          <div className="flex gap-2 pt-1">
-                              <button
-                                  type="submit"
-                                  disabled={isUploading}
-                                  className="bg-blue-600 text-white px-4 py-2 rounded w-1/2"
-                              >
-                                  {isUploading
-                                      ? "Uploading..."
-                                      : "Save & Upload"}
-                              </button>
-                              <button
-                                  type="button"
-                                  disabled={isUploading}
-                                  onClick={() =>
-                                      handleMetadataSubmit(undefined, true)
-                                  }
-                                  className="bg-gray-600 text-white px-4 py-2 rounded w-1/2"
-                              >
-                                  {isUploading
-                                      ? "Uploading..."
-                                      : "Skip Metadata"}
-                              </button>
-                          </div>
-                      </form>
-                  </div>
-              </div>
-          )} */}
+                            <div className="flex gap-2 pt-1">
+                                <button
+                                    type="submit"
+                                    disabled={isUploading}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded w-1/2"
+                                >
+                                    {isUploading
+                                        ? "Uploading..."
+                                        : "Save & Upload"}
+                                </button>
+                                {/* <button
+                                    type="button"
+                                    disabled={isUploading}
+                                    onClick={() =>
+                                        handleMetadataSubmit(undefined, true)
+                                    }
+                                    className="bg-gray-600 text-white px-4 py-2 rounded w-1/2"
+                                >
+                                    {isUploading
+                                        ? "Uploading..."
+                                        : "Skip Metadata"}
+                                </button> */}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
