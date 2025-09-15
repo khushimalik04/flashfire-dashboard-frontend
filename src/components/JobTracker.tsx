@@ -370,19 +370,47 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
         const job = userJobs?.find((j) => j.jobID === jobID);
         if (!job) return;
 
-        if (
-            job.currentStatus?.toLowerCase().startsWith("saved") &&
-            !status.toLowerCase().startsWith("deleted") &&
-            !status.toLowerCase().startsWith("saved")
-        ) {
-            setSelectedJob(job);
-            setPendingMove({ jobID, status });
-            setShowJobModal(true);
-            return;
-        }
+  // Gate only when moving out of "saved" to a real status (not deleted/saved)
+  if (job.currentStatus === 'saved' && status !== 'deleted' && status !== 'saved') {
+    setSelectedJob(job);
+    setPendingMove({ jobID, status });
+    setShowJobModal(true);
+    return;
+  }
 
-        onUpdateJobStatus(jobID, status, userDetails);
-    };
+  // ✅ Optimistic UI update
+  setUserJobs((prevJobs) =>
+    prevJobs.map((j) =>
+      j.jobID === jobID ? { ...j, currentStatus: status, updatedAt: new Date().toString() } : j
+    )
+  );
+
+  // Then update server in background
+  onUpdateJobStatus(jobID, status, userDetails);
+};
+
+
+
+  // Replace your current handleDrop with this:
+// const handleDrop = (e: React.DragEvent, status: JobStatus) => {
+//   e.preventDefault();
+//   const jobID = e.dataTransfer.getData('jobID') || e.dataTransfer.getData('jobId');
+//   if (!jobID) return;
+
+//   const job = userJobs?.find((j) => j.jobID === jobID);
+//   if (!job) return;
+
+//   // Gate only when moving out of "saved" to a real status (not deleted/saved)
+//   if (job.currentStatus === 'saved' && status !== 'deleted' && status !== 'saved') {
+//     setSelectedJob(job);
+//     setPendingMove({ jobID, status });
+//     setShowJobModal(true);        // ⬅️ open modal
+//     return;                       // ⛔ do NOT move yet
+//   }
+
+//   // Normal moves (non-gated)
+//   onUpdateJobStatus(jobID, status, userDetails);
+// };
 
     const tsFromUpdatedAt = (val: unknown): number => {
         if (!val) return 0;
