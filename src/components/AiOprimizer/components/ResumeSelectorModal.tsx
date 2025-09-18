@@ -3,7 +3,12 @@ import { createPortal } from "react-dom";
 import { ResumeData } from "../types/ResumeTypes";
 import { useResumeUnlockStore } from "../store/resumeStore";
 import { Lock, X, AlertCircle } from "lucide-react";
-import { getStoredPin, storePin, clearStoredPin, getPinTimeRemainingString } from "../../../utils/pinStorage";
+import {
+    getStoredPin,
+    storePin,
+    clearStoredPin,
+    getPinTimeRemainingString,
+} from "../../../utils/pinStorage";
 
 type Props = {
     open: boolean;
@@ -59,6 +64,9 @@ export default function ResumeSelectorModal({
                 if (version == 1) {
                     url = `${apiUrl}/api/resumes/v1`;
                 }
+                if (version == 2) {
+                    url = `${apiUrl}/api/resumes/v2`;
+                }
 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -91,7 +99,7 @@ export default function ResumeSelectorModal({
         setSelectedResumeId(resumeId);
         setUnlockModalOpen(true);
         setErrorMessage(null);
-        
+
         // Auto-fill PIN if stored
         const storedPin = getStoredPin();
         setUnlockKey(storedPin || "");
@@ -290,7 +298,8 @@ export default function ResumeSelectorModal({
                                                 </span>
                                                 {getPinTimeRemainingString() && (
                                                     <span className="text-xs text-gray-500">
-                                                        Expires in {getPinTimeRemainingString()}
+                                                        Expires in{" "}
+                                                        {getPinTimeRemainingString()}
                                                     </span>
                                                 )}
                                             </div>
