@@ -1,15 +1,17 @@
 import { ArrowLeftCircle, Trash2 , HardDriveDownload  } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
+import { UserContext } from '../state_management/UserContext.js';
 
 type PendingType = "optimized" | "coverLetter" | null;
 
 type Entry = {
-    jobRole: string;
-    companyName: string;
-    jobLink?: string;
-    url: string;
-    createdAt?: string | Date;
-    jobId?: string;
+  jobRole: string;
+  companyName: string;
+  jobLink?: string;
+  url: string;
+  createdAt?: string | Date;
+  jobId?: string;
+  name : string
 };
 
 // Cloudinary sometimes serves PDFs under `image/upload`.
@@ -56,10 +58,9 @@ const DownloadIcon = () => (
 );
 
 export default function DocumentUpload() {
-    const [activeTab, setActiveTab] = useState<"base" | "optimized" | "cover">(
-        "base"
-    );
-
+  const [activeTab, setActiveTab] = useState<"base" | "optimized" | "cover">("base");
+  const [fileNamePrompt, setFileNamePrompt] = useState<string>("");
+    const context = useContext(UserContext);
   const [baseResume, setBaseResume] = useState([]);
   const [optimizedList, setOptimizedList] = useState<Entry[]>([]);
   const [coverList, setCoverList] = useState<Entry[]>([]);
@@ -138,29 +139,15 @@ export default function DocumentUpload() {
         return url;
     };
 
-    const persistToBackend = async (payload: any) => {
-        const res = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/plans/select`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            }
-        );
-        if (!res.ok) throw new Error("Backend save failed");
-        return res.json(); // -> { userDetails: {..., resumeLink, optimizedResumes, coverLetters } }
-    };
-
-  // ---- initialization (hydrate from userAuth) ----
-  // useEffect(() => {
-  //   const parsed = readAuth();
-  //   if (!parsed) return;
-  //   const u = parsed.userDetails || {};
-  //   setBaseResume(u.resumeLink || "");
-  //   setOptimizedList(Array.isArray(u.optimizedResumes) ? u.optimizedResumes : []);
-  //   setCoverList(Array.isArray(u.coverLetters) ? u.coverLetters : []);
-  // }, []);
-
+  const persistToBackend = async (payload: any) => {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/plans/select`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Backend save failed");
+    return res.json(); // -> { userDetails: {..., resumeLink, optimizedResumes, coverLetters } }
+  };
   useEffect(() => {
   const parsed = readAuth();
   if (!parsed) return;
@@ -222,102 +209,167 @@ if (activeTab === "base") defaultUrl = baseResume[0]?.link || null;
             return;
         }
 
-        if (isUploading) return;
-        setIsUploading(true);
 
-        try {
-            const parsed = readAuth();
-            if (!parsed) {
-                setIsUploading(false);
-                return;
-            }
+    for (const file of files) {
+     if (type === "base" || type === "coverLetter" || type === "optimized") {
+  const name = prompt("Enter a name for this file:");
+  if (!name) return;
+  setSelectedFile(file);
+  setFileNamePrompt(name);
+  setPendingUploadType(type);
 
-            if (type === "base") {
-                // For base, handle as before, last file wins
-                for (const file of files) {
-                    await uploadBaseResume(file);
-                }
-                setPreviewMode(true);
-            } else {
-                // For optimized or coverLetter: upload multiple without metadata, use filename as jobRole
-                const uploads = await Promise.all(
-                    files.map(async (file) => {
-                        const uploadedURL = await uploadToCloudinary(file);
-                        return {
-                            url: uploadedURL,
-                            jobRole: file.name.replace(/\.pdf$/i, ""),
-                            companyName: "",
-                            jobLink: "",
-                            jobId: "",
-                            createdAt: new Date().toISOString(),
-                        };
-                    })
-                );
+  if (type === "base") {
+    await uploadBaseResume(file, name);
+    setPreviewMode(false);
+  } else if (type === "coverLetter") {
+    await uploadCoverLetter(file, name);
+  } else if (type === "optimized") {
+    await uploadOptimizedResume(file, name);
+  }
+  return;
+}
 
-                const payload: any = {
-                    userDetails: parsed.userDetails,
-                    resumeLink: baseResume, // include current base if any
-                };
-
-                const entriesKey =
-                    type === "optimized"
-                        ? "optimizedResumeEntries"
-                        : "coverLetterEntries";
-                payload[entriesKey] = uploads;
-
-                const backendData = await persistToBackend(payload);
-                const serverUser =
-                    backendData.userDetails || parsed.userDetails;
-
-                // Persist and hydrate from server
-                writeAuth(serverUser, parsed.token);
-
-                setBaseResume(serverUser.resumeLink || baseResume);
-                setOptimizedList(
-                    Array.isArray(serverUser.optimizedResumes)
-                        ? serverUser.optimizedResumes
-                        : []
-                );
-                setCoverList(
-                    Array.isArray(serverUser.coverLetters)
-                        ? serverUser.coverLetters
-                        : []
-                );
-
-                // Show list after upload
-                setPreviewMode(false);
-                setActivePreviewUrl(null);
-                setIframeError(null);
-
-                alert(`✅ ${uploads.length} documents uploaded successfully!`);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Upload failed.");
-        } finally {
-            setIsUploading(false);
-        }
     };
+  }
 
-    const uploadBaseResume = async (file: File) => {
-        try {
-            const uploadedURL = await uploadToCloudinary(file);
+const uploadBaseResume = async (file: File, name: string) => {
+  const uploadedURL = await uploadToCloudinary(file);
+  const parsed = readAuth();
+  if (!parsed) return;
 
-            const parsed = readAuth();
-            if (!parsed) return;
+  const newEntry = {
+    name,
+    createdAt: new Date().toISOString(),
+    link: uploadedURL,
+  };
 
   const payload = {
     token: parsed.token,
     userDetails: parsed.userDetails,
-    resumeLink: newEntry, // ✅ always array now
+    resumeLink: newEntry,
   };
-  console.log('Payload for base resume upload:', payload);
+
   const backendData = await persistToBackend(payload);
   const serverUser = backendData.userDetails || parsed.userDetails;
 
   writeAuth(serverUser, parsed.token);
   setBaseResume(serverUser.resumeLink);
 };
+
+
+const uploadOptimizedResume = async (file: File, name: string) => {
+  try {
+    setIsUploading(true);
+
+    // 1. Upload to Cloudinary
+    const uploadedURL = await uploadToCloudinary(file);
+
+    // 2. Read auth
+    const parsed = readAuth();
+    if (!parsed) return;
+
+    // 3. Build new entry (only name + url + createdAt)
+    const newEntry: Entry = {
+      name,
+      url: uploadedURL,
+      createdAt: new Date().toISOString(),
+      jobRole: "",      // left blank since you’re not collecting metadata
+      companyName: "",
+      jobLink: "",
+    };
+
+    // 4. Prepare payload
+    const payload = {
+      token: parsed.token,
+      userDetails: {
+        ...parsed.userDetails,
+        email: parsed.userDetails?.email, // ✅ ensure email present
+      },
+      optimizedResumeEntry: newEntry,
+    };
+
+    console.log("Payload for optimized resume upload:", payload);
+
+    // 5. Save to backend
+    const backendData = await persistToBackend(payload);
+    const serverUser = backendData.userDetails || parsed.userDetails;
+
+    // 6. Persist & hydrate
+    writeAuth(serverUser, parsed.token);
+    setOptimizedList(Array.isArray(serverUser.optimizedResumes) ? serverUser.optimizedResumes : []);
+
+    // 7. Update preview
+    setPreviewMode(true);
+    setActivePreviewUrl(toRawPdfUrl(uploadedURL));
+    setIframeError(null);
+
+    alert("✅ Optimized resume uploaded successfully!");
+  } catch (err) {
+    console.error("Upload optimized resume failed:", err);
+    alert("❌ Upload failed.");
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+
+
+const uploadCoverLetter = async (file: File, name: string) => {
+  try {
+    setIsUploading(true);
+
+    // 1. Upload to Cloudinary
+    const uploadedURL = await uploadToCloudinary(file);
+
+    // 2. Read auth
+    const parsed = readAuth();
+    if (!parsed) return;
+
+    // 3. Build new entry
+    const newEntry: Entry = {
+      name,
+      url: uploadedURL,
+      createdAt: new Date().toISOString(),
+      jobRole: "",
+      companyName: "",
+      jobLink: "",
+    };
+
+    // 4. Prepare payload for backend
+    const payload = {
+      token: parsed.token,
+      userDetails: {
+        ...parsed.userDetails,
+        email: parsed.userDetails?.email, // ✅ ensure email is always sent
+      },
+      coverLetterEntry: newEntry,
+    };
+
+    console.log("Payload for cover letter upload:", payload);
+
+    // 5. Save to backend
+    const backendData = await persistToBackend(payload);
+    const serverUser = backendData.userDetails || parsed.userDetails;
+
+    // 6. Persist & hydrate
+    writeAuth(serverUser, parsed.token);
+    setCoverList(Array.isArray(serverUser.coverLetters) ? serverUser.coverLetters : []);
+
+    // 7. Update preview
+    setPreviewMode(true);
+    setActivePreviewUrl(toRawPdfUrl(uploadedURL));
+    setIframeError(null);
+
+    alert("✅ Cover letter uploaded successfully!");
+  } catch (err) {
+    console.error("Upload cover letter failed:", err);
+    alert("❌ Upload failed.");
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+
 const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover") => {
   const DELETE_PASSCODE = import.meta.env.VITE_EDIT_PASSCODE; // simple hardcoded passcode for demo
   const input = prompt("Enter passcode to delete:");
@@ -451,9 +503,9 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
               >
                 <div className="col-span-6 min-w-0">
   <p className="truncate">
-    {category === "Base"
-      ? (it.name || "Unnamed Resume")   // ✅ show stored name
-      : `${it.jobRole || "—"} at ${it.companyName || "—"}`}
+    {category === "Base"|| category == "Cover Letter"
+      ? (`${it.name} -- Added on :  ${it.createdAt.slice(0,10)}` || "Unnamed Resume")   // ✅ show stored name
+      : `${it.jobRole || "—"} At ${it.companyName || "—"}`}
   </p>
 </div>
                 <div className="col-span-2">{category}</div>
@@ -480,7 +532,7 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
                     onClick={(e) => e.stopPropagation()}
                     title="Download"
                   >
-                    <HardDriveDownload className="text-gray-700 hover:text-blue-600 m-2 "  />
+                    <DownloadIcon className="text-gray-700 hover:text-blue-600 m-2 "  />
                   </a>
 
                   <button
@@ -955,4 +1007,4 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
             )}
         </div>
     );
-}
+  }
