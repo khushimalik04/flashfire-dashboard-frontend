@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ResumeData } from "../types/ResumeTypes";
 import { useResumeUnlockStore } from "../store/resumeStore";
+import { useResumeStore } from "../store/useResumeStore";
 import { Lock, X, AlertCircle } from "lucide-react";
 import {
     getStoredPin,
@@ -34,6 +35,7 @@ export default function ResumeSelectorModal({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const { setResumeId } = useResumeUnlockStore();
+    const { setLastSelectedResume } = useResumeStore();
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
     useEffect(() => {
@@ -188,6 +190,10 @@ export default function ResumeSelectorModal({
 
             // Common logic for both admin and non-admin after fetching resume
             setResumeId(selectedResumeId);
+
+            // Store the selected resume persistently for future use
+            setLastSelectedResume(resumeData, selectedResumeId);
+
             onSelect(resumeData);
             setUnlockModalOpen(false);
             onClose();

@@ -17,16 +17,20 @@ interface ResumeStore {
      currentView: "editor" | "optimized" | "changes";
      showChanges: boolean;
      changedFields: Set<string>;
-     showPublications : boolean;
-     
+     showPublications: boolean;
+
+     // Persistent resume selection
+     lastSelectedResume: ResumeDataType | null;
+     lastSelectedResumeId: string | null;
+
      // actions
-     
+
      setResumeData: (data: ResumeDataType) => void;
      setBaseResume: (data: ResumeDataType) => void;
      setShowLeadership: (value: boolean) => void;
      setShowProjects: (value: boolean) => void;
      setShowSummary: (value: boolean) => void;
-     setShowPublications : (value : boolean) => void;
+     setShowPublications: (value: boolean) => void;
      setIsSaved: (value: boolean) => void;
      setJobDescription: (value: string) => void;
      setIsOptimizing: (value: boolean) => void;
@@ -40,12 +44,17 @@ interface ResumeStore {
      setShowChanges: (value: boolean) => void;
      setChangedFields: (fields: Set<string>) => void;
      resetStore: () => void;
+
+     // Persistent resume selection actions
+     setLastSelectedResume: (data: ResumeDataType, resumeId: string) => void;
+     clearLastSelectedResume: () => void;
+     loadLastSelectedResume: () => boolean;
 }
 
 
 export const useResumeStore = create<ResumeStore>()(
      persist(
-          (set) => ({
+          (set, get) => ({
                resumeData: initialData,
                baseResume: initialData,
                showLeadership: false,
@@ -59,7 +68,10 @@ export const useResumeStore = create<ResumeStore>()(
                showChanges: false,
                changedFields: new Set(),
                showPublications: false,
-               
+
+               // Persistent resume selection
+               lastSelectedResume: null,
+               lastSelectedResumeId: null,
 
                setShowPublications: (value) => set({ showPublications: value }),
                setResumeData: (data) => set({ resumeData: data }),
@@ -88,7 +100,7 @@ export const useResumeStore = create<ResumeStore>()(
                          showProjects: false, // Will be set based on database check
                          showSummary: false, // Will be set based on database check
                          isSaved: false,
-                         showPublications : false,
+                         showPublications: false,
                          jobDescription: "",
                          isOptimizing: false,
                          optimizedData: null,
@@ -96,12 +108,44 @@ export const useResumeStore = create<ResumeStore>()(
                          showChanges: false,
                          changedFields: new Set(),
                     }),
+
+               // Persistent resume selection actions
+               setLastSelectedResume: (data, resumeId) => {
+                    set({
+                         lastSelectedResume: data,
+                         lastSelectedResumeId: resumeId,
+                         resumeData: data,
+                         baseResume: data
+                    });
+               },
+
+               clearLastSelectedResume: () => {
+                    set({
+                         lastSelectedResume: null,
+                         lastSelectedResumeId: null
+                    });
+               },
+
+               loadLastSelectedResume: () => {
+                    const state = get();
+                    if (state.lastSelectedResume && state.lastSelectedResumeId) {
+                         set({
+                              resumeData: state.lastSelectedResume,
+                              baseResume: state.lastSelectedResume
+                         });
+                         return true; // Indicates resume was loaded
+                    }
+                    return false; // No resume to load
+               },
           }),
           {
                name: "resume-storage", // key in localStorage
                partialize: (state) => ({
                     ...state,
                     changedFields: Array.from(state.changedFields),
+                    // Persist the last selected resume data
+                    lastSelectedResume: state.lastSelectedResume,
+                    lastSelectedResumeId: state.lastSelectedResumeId,
                }),
                onRehydrateStorage: () => (state) => {
                     if (state) {
