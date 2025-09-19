@@ -423,7 +423,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                 status: "saved",
                                 label: "Saved",
                                 count: userJobs?.filter(
-                                    (item) => item.currentStatus == "saved"
+                                    (item) => item.currentStatus?.startsWith("saved")
                                 ).length,
                                 color: "bg-gray-500",
                                 icon: Clock,
@@ -432,7 +432,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                 status: "applied",
                                 label: "Applied",
                                 count: userJobs?.filter(
-                                    (item) => item.currentStatus == "applied"
+                                    (item) => item.currentStatus?.startsWith("applied")
                                 ).length,
                                 color: "bg-blue-500",
                                 icon: FileText,
@@ -442,7 +442,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                 label: "Interviewing",
                                 count: userJobs?.filter(
                                     (item) =>
-                                        item.currentStatus == "interviewing"
+                                        item.currentStatus?.startsWith("interviewing")
                                 ).length,
                                 color: "bg-amber-500",
                                 icon: Users,
@@ -451,7 +451,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                 status: "offer",
                                 label: "Offers",
                                 count: userJobs?.filter(
-                                    (item) => item.currentStatus == "offer"
+                                    (item) => item.currentStatus?.startsWith("offer")
                                 ).length,
                                 color: "bg-green-500",
                                 icon: CheckCircle,
@@ -460,7 +460,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                 status: "rejected",
                                 label: "Rejected",
                                 count: userJobs?.filter(
-                                    (item) => item.currentStatus == "rejected"
+                                    (item) => item.currentStatus?.startsWith("rejected")
                                 ).length,
                                 color: "bg-red-500",
                                 icon: XCircle,
