@@ -168,7 +168,7 @@ const JobTracker = () => {
             const jobDetails = {
                 ...jobData,
                 jobID: Date.now().toString(),
-                userID: userDetails?.email, 
+                userID: userDetails?.email,
             };
 
             const saveJobsToDb = await fetch(`${API_BASE_URL}/api/jobs`, {
@@ -363,9 +363,9 @@ const JobTracker = () => {
         if (!job) return;
 
         if (
-            job.currentStatus === "saved" &&
-            status !== "deleted" &&
-            status !== "saved"
+            job.currentStatus?.toLowerCase().startsWith("saved") &&
+            !status.toLowerCase().startsWith("deleted") &&
+            !status.toLowerCase().startsWith("saved")
         ) {
             setSelectedJob(job);
             setPendingMove({ jobID, status });

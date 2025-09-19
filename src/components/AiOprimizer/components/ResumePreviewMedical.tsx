@@ -127,16 +127,17 @@ export const ResumePreviewMedical: React.FC<ResumePreviewProps> = ({
                 <div
                     style={{
                         fontSize: "16px",
-                        marginBottom: "4px",
+                        marginTop: "8px",
+                        marginBottom: "6px",
                         fontWeight: "bold",
                     }}
                 >
                     {data.personalInfo.name || "Your Name"}
                 </div>
-                <div style={{ fontSize: "9pt", marginBottom: "4px" }}>
+                <div style={{ fontSize: "9pt", marginBottom: "6px" }}>
                     {data.personalInfo.title || "Your Professional Title"}
                 </div>
-                <div style={{ fontSize: "9pt" }}>
+                <div style={{ fontSize: "9pt", marginBottom: "8px" }}>
                     {data.personalInfo.phone}
                     {data.personalInfo.email && (
                         <>
@@ -652,7 +653,10 @@ export const ResumePreviewMedical: React.FC<ResumePreviewProps> = ({
                             PUBLICATIONS
                         </div>
                         {data.publications.map((publication) => (
-                            <div key={publication.id} style={{ marginBottom: "6px" }}>
+                            <div
+                                key={publication.id}
+                                style={{ marginBottom: "6px" }}
+                            >
                                 <div
                                     style={{
                                         display: "flex",

@@ -42,7 +42,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
     // Referral Modal State
     const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
-    async function FetchAllJobs(localToken, localUserDetails) {
+    async function FetchAllJobs(localToken: string, localUserDetails: any) {
         if (role == "operations") {
             console.log("local storage email : ", localUserDetails.email);
             try {
@@ -148,15 +148,121 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
     const stats = calculateDashboardStats(userJobs);
     console.log("stats = ", stats);
 
-    const recentJobs = userJobs
-        .sort(
-            (a, b) =>
-                new Date(b?.updatedAt).getTime() -
-                new Date(a?.updatedAt).getTime()
-        )
-        .slice(0, 6);
+    // Helper function to parse dates in various formats
+    const parseCustomDate = (dateString: string): Date => {
+        if (!dateString) return new Date(0);
 
-    console.log("RecentAllJOBS META DATA", recentJobs);
+        try {
+            // Try to parse with standard Date constructor first
+            const standardDate = new Date(dateString);
+            if (!isNaN(standardDate.getTime())) {
+                return standardDate;
+            }
+
+            // Handle format like "19/9/2025, 12:19:50 pm" or "5/9/2025, 2:16:09 am"
+            const cleaned = dateString.replace(/,/g, "").trim();
+            const parts = cleaned.split(" ");
+
+            if (parts.length >= 2) {
+                const datePart = parts[0]; // "19/9/2025" or "5/9/2025"
+                const timePart = parts.slice(1).join(" "); // "12:19:50 pm"
+
+                const [day, month, year] = datePart.split("/");
+                if (day && month && year) {
+                    const date = new Date(
+                        parseInt(year),
+                        parseInt(month) - 1,
+                        parseInt(day)
+                    );
+
+                    // Add time if available
+                    if (timePart) {
+                        const timeMatch = timePart.match(
+                            /(\d{1,2}):(\d{2}):(\d{2})\s*(am|pm)?/i
+                        );
+                        if (timeMatch) {
+                            let hours = parseInt(timeMatch[1]);
+                            const minutes = parseInt(timeMatch[2]);
+                            const seconds = parseInt(timeMatch[3]);
+                            const period = timeMatch[4]?.toLowerCase();
+
+                            if (period === "pm" && hours !== 12) hours += 12;
+                            if (period === "am" && hours === 12) hours = 0;
+
+                            date.setHours(hours, minutes, seconds);
+                        }
+                    }
+
+                    return date;
+                }
+            }
+
+            // Try parsing as ISO string or other common formats
+            const isoDate = new Date(dateString);
+            if (!isNaN(isoDate.getTime())) {
+                return isoDate;
+            }
+        } catch (error) {
+            console.warn("Failed to parse date:", dateString, error);
+        }
+
+        // Final fallback - return epoch time to sort at the end
+        return new Date(0);
+    };
+
+    // Remove duplicates based on jobID and filter valid jobs
+    const uniqueJobs =
+        userJobs?.filter(
+            (job, index, self) =>
+                job &&
+                job.updatedAt &&
+                job.jobID &&
+                self.findIndex((j) => j.jobID === job.jobID) === index
+        ) || [];
+
+    console.log("Total unique jobs:", uniqueJobs.length);
+    console.log(
+        "All jobs with updatedAt:",
+        uniqueJobs.map((job) => ({
+            jobID: job.jobID,
+            title: job.jobTitle,
+            company: job.companyName,
+            updatedAt: job.updatedAt,
+            parsedDate: parseCustomDate(job.updatedAt),
+        }))
+    );
+
+    const recentJobs =
+        uniqueJobs
+            ?.sort((a, b) => {
+                // Use updatedAt first, fallback to createdAt, then fallback to dateAdded
+                const dateA = parseCustomDate(
+                    a?.updatedAt || a?.createdAt || a?.dateAdded || ""
+                );
+                const dateB = parseCustomDate(
+                    b?.updatedAt || b?.createdAt || b?.dateAdded || ""
+                );
+                return dateB.getTime() - dateA.getTime();
+            })
+            ?.slice(0, 6) || [];
+
+    console.log(
+        "RecentAllJOBS META DATA",
+        recentJobs.map((job) => ({
+            jobID: job.jobID,
+            title: job.jobTitle,
+            company: job.companyName,
+            updatedAt: job.updatedAt,
+            status: job.currentStatus,
+            parsedDate: parseCustomDate(job.updatedAt),
+        }))
+    );
+
+    // Force re-calculation when userJobs changes
+    useEffect(() => {
+        // This effect ensures the component re-renders when userJobs changes
+        console.log("userJobs updated, recalculating recent jobs");
+    }, [userJobs]);
     const successRate =
         stats.total > 0 ? Math.round((stats.offer / stats.total) * 100) : 0;
     const responseRate =
@@ -230,9 +336,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             <div className="text-right">
                                 <p className="text-3xl font-bold text-gray-900">
                                     {userJobs?.length -
-                                        userJobs.filter(
-                                            (items) =>
-                                                items.currentStatus == "deleted"
+                                        userJobs.filter((items) =>
+                                            items.currentStatus
+                                                ?.toLowerCase()
+                                                .startsWith("deleted")
                                         ).length}
                                 </p>
                                 <p className="text-sm font-medium text-gray-500">
@@ -375,9 +482,9 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                 <p className="text-lg font-semibold text-gray-900">
                   {(
                     (
-                      userJobs?.filter(item => item.currentStatus === 'interviewing').length +
-                      userJobs?.filter(item => item.currentStatus === 'offer').length +
-                      userJobs?.filter(item => item.currentStatus === 'rejected').length
+                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('interviewing')).length +
+                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('offer')).length +
+                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('rejected')).length
                     ) / userJobs?.length * 100
                   ).toFixed(0)}%
                 </p>
@@ -422,8 +529,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "saved",
                                 label: "Saved",
-                                count: userJobs?.filter(
-                                    (item) => item.currentStatus?.startsWith("saved")
+                                count: userJobs?.filter((item) =>
+                                    item.currentStatus
+                                        ?.toLowerCase()
+                                        .startsWith("saved")
                                 ).length,
                                 color: "bg-gray-500",
                                 icon: Clock,
@@ -431,8 +540,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "applied",
                                 label: "Applied",
-                                count: userJobs?.filter(
-                                    (item) => item.currentStatus?.startsWith("applied")
+                                count: userJobs?.filter((item) =>
+                                    item.currentStatus
+                                        ?.toLowerCase()
+                                        .startsWith("applied")
                                 ).length,
                                 color: "bg-blue-500",
                                 icon: FileText,
@@ -440,9 +551,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "interviewing",
                                 label: "Interviewing",
-                                count: userJobs?.filter(
-                                    (item) =>
-                                        item.currentStatus?.startsWith("interviewing")
+                                count: userJobs?.filter((item) =>
+                                    item.currentStatus
+                                        ?.toLowerCase()
+                                        .startsWith("interviewing")
                                 ).length,
                                 color: "bg-amber-500",
                                 icon: Users,
@@ -450,8 +562,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "offer",
                                 label: "Offers",
-                                count: userJobs?.filter(
-                                    (item) => item.currentStatus?.startsWith("offer")
+                                count: userJobs?.filter((item) =>
+                                    item.currentStatus
+                                        ?.toLowerCase()
+                                        .startsWith("offer")
                                 ).length,
                                 color: "bg-green-500",
                                 icon: CheckCircle,
@@ -459,8 +573,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "rejected",
                                 label: "Rejected",
-                                count: userJobs?.filter(
-                                    (item) => item.currentStatus?.startsWith("rejected")
+                                count: userJobs?.filter((item) =>
+                                    item.currentStatus
+                                        ?.toLowerCase()
+                                        .startsWith("rejected")
                                 ).length,
                                 color: "bg-red-500",
                                 icon: XCircle,
@@ -492,10 +608,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                     {recentJobs.length > 0 ? (
                         <div className="space-y-4">
                             {recentJobs?.map((job) => {
-                                // Determine status key from the same field you use elsewhere
-                                const key = (
-                                    job.updatedAt || "saved"
-                                ).toLowerCase();
+                                // Determine status key from currentStatus
+                                const key = (job.currentStatus || "saved")
+                                    .toLowerCase()
+                                    .split(" ")[0]; // Get first word for matching
 
                                 // Configuration for each status
                                 const statusConfig: Record<
@@ -542,11 +658,18 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                                     statusConfig[key] || statusConfig.saved;
                                 const Icon = config.icon;
 
-                                // Parse the ISO timestamp
-                                const date = new Date(job.updatedAt);
-                                const displayDate = isNaN(date.getTime())
-                                    ? "Invalid Date"
-                                    : date.toLocaleDateString();
+                                // Parse the timestamp using our custom parser
+                                const date = parseCustomDate(
+                                    job.updatedAt ||
+                                        job.createdAt ||
+                                        job.dateAdded ||
+                                        ""
+                                );
+                                const displayDate =
+                                    isNaN(date.getTime()) ||
+                                    date.getTime() === 0
+                                        ? "Invalid Date"
+                                        : date.toLocaleDateString();
 
                                 return (
                                     <div
