@@ -64,6 +64,7 @@ export default function DocumentUpload() {
   const [baseResume, setBaseResume] = useState([]);
   const [optimizedList, setOptimizedList] = useState<Entry[]>([]);
   const [coverList, setCoverList] = useState<Entry[]>([]);
+  const [transcriptList, setTranscriptList] = useState([]);
 
     // const [showMetaModal, setShowMetaModal] = useState<PendingType>(null);
     // const [pendingUploadType, setPendingUploadType] = useState<PendingType>(null);
@@ -172,6 +173,8 @@ export default function DocumentUpload() {
 
   setOptimizedList(Array.isArray(u.optimizedResumes) ? u.optimizedResumes : []);
   setCoverList(Array.isArray(u.coverLetters) ? u.coverLetters : []);
+  setTranscriptList(Array.isArray(u.transcripts) ? u.transcripts : []);
+
 }, []);
 
     // Default preview per tab (only when in preview mode AND no preview selected yet)
@@ -184,6 +187,8 @@ export default function DocumentUpload() {
 if (activeTab === "base") defaultUrl = baseResume[0]?.link || null;
     else if (activeTab === "optimized") defaultUrl = optimizedList[0]?.url || null;
     else if (activeTab === "cover") defaultUrl = coverList[0]?.url || null;
+    else if (activeTab === "transcript") defaultUrl = transcriptList[0]?.url || null;
+
 
         setActivePreviewUrl(toRawPdfUrl(defaultUrl));
     }, [
@@ -226,6 +231,10 @@ if (activeTab === "base") defaultUrl = baseResume[0]?.link || null;
   } else if (type === "optimized") {
     await uploadOptimizedResume(file, name);
   }
+  else if (type === "transcript") {
+  await uploadTranscript(file, name);
+}
+
   return;
 }
 
@@ -369,6 +378,51 @@ const uploadCoverLetter = async (file: File, name: string) => {
   }
 };
 
+const uploadTranscript = async (file: File, name: string) => {
+  try {
+    setIsUploading(true);
+    const uploadedURL = await uploadToCloudinary(file);
+    const parsed = readAuth();
+    if (!parsed) return;
+
+    const newEntry: Entry = {
+      name,
+      url: uploadedURL,
+      createdAt: new Date().toISOString(),
+      jobRole: "",
+      companyName: "",
+      jobLink: "",
+    };
+
+    const payload = {
+      token: parsed.token,
+      userDetails: {
+        ...parsed.userDetails,
+        email: parsed.userDetails?.email,
+      },
+      transcriptEntry: newEntry,
+    };
+
+    const backendData = await persistToBackend(payload);
+    const serverUser = backendData.userDetails || parsed.userDetails;
+
+    writeAuth(serverUser, parsed.token);
+    setTranscriptList(Array.isArray(serverUser.transcripts) ? serverUser.transcripts : []);
+
+    setPreviewMode(true);
+    setActivePreviewUrl(toRawPdfUrl(uploadedURL));
+    setIframeError(null);
+
+    alert("✅ Transcript uploaded successfully!");
+  } catch (err) {
+    console.error("Upload transcript failed:", err);
+    alert("❌ Upload failed.");
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+
 
 const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover") => {
   const DELETE_PASSCODE = import.meta.env.VITE_EDIT_PASSCODE; // simple hardcoded passcode for demo
@@ -394,6 +448,10 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
     } else if (category === "cover") {
       payload.deleteCoverLetter = item;
     }
+    else if (category === "transcript") {
+  payload.deleteTranscript = item;
+}
+
 
     const backendData = await persistToBackend(payload);
     const serverUser = backendData.userDetails || parsed.userDetails;
@@ -403,6 +461,7 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
     setBaseResume(serverUser.resumeLink || []);
     setOptimizedList(Array.isArray(serverUser.optimizedResumes) ? serverUser.optimizedResumes : []);
     setCoverList(Array.isArray(serverUser.coverLetters) ? serverUser.coverLetters : []);
+    setTranscriptList(Array.isArray(serverUser.transcripts) ? serverUser.transcripts : []);
 
     alert("✅ Document deleted successfully!");
   } catch (err) {
@@ -656,6 +715,19 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
                             >
                                 Cover Letters
                             </button>
+                            <button
+                                className={`px-4 py-3 text-left w-full hover:bg-gray-50 ${
+                                    activeTab === "transcript" ? "bg-blue-50 text-blue-700 font-medium" : ""
+                                }`}
+                                onClick={() => {
+                                    setActiveTab("transcript");
+                                    setPreviewMode(false);
+                                    setActivePreviewUrl(null);
+                                }}
+                                >
+                                Transcripts
+                            </button>
+
                         </nav>
                     </div>
                 </aside>
@@ -880,6 +952,56 @@ const handleDelete = async (item: Entry, category: "base" | "optimized" | "cover
                                 )}
                             </section>
                         )}
+                        {activeTab === "transcript" && (
+  <section>
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-lg font-semibold">Transcripts</h3>
+      {previewMode ? (
+        <button
+          className="px-3 py-1.5 rounded bg-blue-500 hover:bg-blue-700 text-white text-sm"
+          onClick={() => setPreviewMode(false)}
+        >
+          <ArrowLeftCircle />
+          View All Docs
+        </button>
+      ) : (
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <span className="text-sm font-medium">Upload New</span>
+          <input
+            type="file"
+            className="hidden"
+            accept="application/pdf,.pdf"
+            onChange={(e) => handleFileUpload(e, "transcript")}
+            disabled={isUploading}
+          />
+          <span className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm">
+            Choose File
+          </span>
+        </label>
+      )}
+    </div>
+
+    {transcriptList.length === 0 ? (
+      <p className="text-sm text-gray-500">No transcripts yet.</p>
+    ) : previewMode && activePreviewUrl ? (
+      <PreviewPanel
+        url={toRawPdfUrl(activePreviewUrl) as string}
+        onChange={() => setPreviewMode(false)}
+      />
+    ) : (
+      <DocsTable
+        items={transcriptList}
+        category="Transcript"
+        onPick={(it) => {
+          setActivePreviewUrl(toRawPdfUrl(it.url)!);
+          setPreviewMode(true);
+          setIframeError(null);
+        }}
+      />
+    )}
+  </section>
+)}
+
                     </div>
                 </main>
             </div>
