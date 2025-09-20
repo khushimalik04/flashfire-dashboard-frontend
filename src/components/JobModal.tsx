@@ -1196,9 +1196,6 @@ export default function JobModal({
                         {role == "operations" ? (
                             <button
                                 onClick={() => {
-                                    setJobDescription(
-                                        jobDetails.jobDescription
-                                    );
                                     window.open(
                                         `/optimize/${jobDetails._id}?view=editor`,
                                         "_blank"
