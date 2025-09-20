@@ -12,7 +12,7 @@ import { useResumeStore } from "./store/useResumeStore";
 import { useResumeUnlockStore } from "./store/resumeStore";
 import { initialData } from "./data/initialData";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import ResumeSelectorModal from "./components/ResumeSelectorModal";
 import LockedSection from "./components/LockedSection";
 import ResumeParserModal from "./components/ResumeParserModal";
@@ -22,7 +22,7 @@ import { ResumePreview1 } from "./components/ResumePreview1";
 import { PreviewStore } from "./store/PreviewStore";
 import { Publications } from "./components/Publications";
 import { ResumePreviewMedical } from "./components/ResumePreviewMedical";
-import "./index.css";
+import "./index.css"; //
 
 // Type definitions remain the same
 interface WorkExperienceItem {
@@ -74,6 +74,7 @@ type ResumeDataType = typeof initialData;
 function App() {
     // URL parameters
     const [searchParams] = useSearchParams();
+    const { jobId } = useParams<{ jobId: string }>();
     const startWithEditor = searchParams.get("view") === "editor";
 
     // Authentication state
@@ -113,6 +114,7 @@ function App() {
         resetStore,
         loadLastSelectedResume,
         clearLastSelectedResume,
+        debugLocalStorage,
         // setUserId,
         showPublications,
         setShowPublications,
@@ -129,12 +131,98 @@ function App() {
         isEditingUnlocked,
         lockAllSections,
         checkAdminAndUnlock,
-        // setResumeId,
+        setResumeId,
         // setAccessKey,
         resume_id,
     } = useResumeUnlockStore();
 
     const [showParseModal, setShowParseModal] = useState(false);
+    const [storeHydrated, setStoreHydrated] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+
+    // Debug: Log store state on mount
+    useEffect(() => {
+        console.log("Optimizer component mounted. Store state:", {
+            resumeData: resumeData,
+            baseResume: baseResume,
+        });
+
+        // Check what's in localStorage
+        const storedData = localStorage.getItem("resume-storage");
+        console.log("Raw localStorage data:", storedData);
+        if (storedData) {
+            try {
+                const parsed = JSON.parse(storedData);
+                console.log("Parsed localStorage data:", parsed);
+                console.log(
+                    "Has lastSelectedResume:",
+                    !!parsed.state?.lastSelectedResume
+                );
+                console.log(
+                    "Has lastSelectedResumeId:",
+                    !!parsed.state?.lastSelectedResumeId
+                );
+                console.log(
+                    "Resume name in localStorage:",
+                    parsed.state?.lastSelectedResume?.personalInfo?.name ||
+                        "No name"
+                );
+            } catch (e) {
+                console.error("Failed to parse localStorage data:", e);
+            }
+        }
+
+        // Expose debug function to global scope for console access
+        (window as any).debugResumeStore = debugLocalStorage;
+        console.log("Debug function available as window.debugResumeStore()");
+
+        // Wait longer for store hydration and localStorage sync when opening new tab
+        const isNewTab = window.opener !== null;
+        const waitTime = isNewTab ? 500 : 200; // Wait longer for new tabs
+
+        // If this is a new tab, try to refresh localStorage data from the parent window
+        if (isNewTab) {
+            console.log(
+                "🔄 New tab detected - attempting to sync localStorage with parent window"
+            );
+
+            // Listen for storage events from the parent window
+            const handleStorageChange = (e: StorageEvent) => {
+                if (e.key === "resume-storage" && e.newValue) {
+                    console.log(
+                        "📡 Received localStorage update from parent window"
+                    );
+                    // Force a page reload to pick up the new data
+                    window.location.reload();
+                }
+            };
+
+            window.addEventListener("storage", handleStorageChange);
+
+            // Clean up listener
+            const cleanup = () => {
+                window.removeEventListener("storage", handleStorageChange);
+            };
+
+            const timer = setTimeout(() => {
+                console.log("⏰ New tab hydration timeout - proceeding");
+                cleanup();
+                setStoreHydrated(true);
+            }, waitTime);
+
+            return () => {
+                clearTimeout(timer);
+                cleanup();
+            };
+        }
+
+        // Regular timer for existing tabs
+        const timer = setTimeout(() => {
+            console.log("⏰ Existing tab hydration timeout - proceeding");
+            setStoreHydrated(true);
+        }, waitTime);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Function to check if projects exist in the database
     const checkProjectsInDatabase = async (userEmail?: string) => {
@@ -325,6 +413,13 @@ function App() {
 
     // Check for existing authentication on component mount
     useEffect(() => {
+        if (!storeHydrated) {
+            console.log(
+                "Waiting for store hydration before checking authentication"
+            );
+            return;
+        }
+
         const storedToken = localStorage.getItem("jwt");
         const storedRole = localStorage.getItem("role");
         const storedEmail = localStorage.getItem("userEmail");
@@ -339,12 +434,18 @@ function App() {
                 setAuthView("admin");
             } else {
                 // First try to load the last selected resume
+                console.log(
+                    "Attempting to load last selected resume from authentication"
+                );
                 const resumeLoaded = loadLastSelectedResume();
 
                 if (resumeLoaded) {
                     console.log("Loaded last selected resume from storage");
                     // The checkLoadedResumeData will be called in a useEffect when resumeData changes
                 } else {
+                    console.log(
+                        "No last selected resume found during authentication"
+                    );
                     // For interns, load their client's default resume if no last selected resume
                     if (
                         storedEmail &&
@@ -386,7 +487,26 @@ function App() {
                 // No need to call checkProjectsInDatabase here as it would override the actual resume data
             }
         }
-    }, []);
+
+        // Set initialization complete
+        setIsInitializing(false);
+    }, [storeHydrated]);
+
+    // Load last selected resume on component mount (separate from auth)
+    useEffect(() => {
+        // Only try to load if we're authenticated and not admin and store is hydrated
+        if (isAuthenticated && userRole !== "admin" && storeHydrated) {
+            console.log(
+                "Attempting to load last selected resume on component mount"
+            );
+            const resumeLoaded = loadLastSelectedResume();
+            if (resumeLoaded) {
+                console.log("Loaded last selected resume on component mount");
+            } else {
+                console.log("No last selected resume found on component mount");
+            }
+        }
+    }, [isAuthenticated, userRole, storeHydrated, loadLastSelectedResume]);
 
     // Set currentView to editor for non-admin users when opening from JobModal
     useEffect(() => {
@@ -418,6 +538,111 @@ function App() {
     useEffect(() => {
         console.log("showPublications state changed to:", showPublications);
     }, [showPublications]);
+
+    // Handle jobId from URL
+    useEffect(() => {
+        if (jobId && jobId !== resume_id) {
+            console.log("Setting resume ID from URL:", jobId);
+            setResumeId(jobId);
+        }
+    }, [jobId, resume_id, setResumeId]);
+
+    // Load resume data when jobId changes
+    useEffect(() => {
+        if (jobId && isAuthenticated && storeHydrated) {
+            console.log("Loading resume data for jobId:", jobId);
+            // Debug localStorage state
+            debugLocalStorage();
+            // Try to load the last selected resume first
+            const resumeLoaded = loadLastSelectedResume();
+            if (!resumeLoaded) {
+                console.log(
+                    "No last selected resume found, will use initial data"
+                );
+            }
+        }
+    }, [
+        jobId,
+        isAuthenticated,
+        storeHydrated,
+        loadLastSelectedResume,
+        debugLocalStorage,
+    ]);
+
+    // Fetch job description from backend when jobId is available
+    const fetchJobDescription = async (jobId: string) => {
+        try {
+            console.log("🔄 Fetching job description for jobId:", jobId);
+
+            const apiUrl =
+                import.meta.env.VITE_API_BASE_URL || "http://localhost:8086";
+            const fullUrl = `${apiUrl}/getJobDescription/${jobId}`;
+            console.log("🌐 Making request to:", fullUrl);
+
+            const response = await fetch(fullUrl, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            console.log(
+                "📡 Response status:",
+                response.status,
+                response.statusText
+            );
+            console.log(
+                "📡 Response headers:",
+                Object.fromEntries(response.headers.entries())
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Response error text:", errorText);
+                throw new Error(
+                    `HTTP error! status: ${response.status}, message: ${errorText}`
+                );
+            }
+
+            const data = await response.json();
+            console.log("✅ Job description fetched successfully:", {
+                jobDescription: data.jobDescription?.substring(0, 100) + "...",
+                jobTitle: data.jobTitle,
+                companyName: data.companyName,
+            });
+
+            // Set the job description in the store
+            if (data.jobDescription) {
+                setJobDescription(data.jobDescription);
+                console.log("✅ Job description set in store");
+            } else {
+                console.log("⚠️ No job description found for this job");
+            }
+        } catch (error) {
+            console.error("❌ Error fetching job description:", error);
+
+            // Check if it's a network error (backend not running)
+            if (error instanceof TypeError && error.message.includes("fetch")) {
+                console.error(
+                    "🌐 Network error - Backend server might not be running on port 8086"
+                );
+                console.error(
+                    "💡 Please ensure the backend server is running: npm start (in Backend folder)"
+                );
+            }
+        }
+    };
+
+    // Fetch job description when jobId changes and user is authenticated
+    useEffect(() => {
+        if (jobId && isAuthenticated && storeHydrated) {
+            console.log(
+                "🔄 Triggering job description fetch for jobId:",
+                jobId
+            );
+            fetchJobDescription(jobId);
+        }
+    }, [jobId, isAuthenticated, storeHydrated]);
 
     // Note: Removed the useEffect that was overriding saved checkbox states
     // Now checkbox states are only set when explicitly loading resume data
@@ -1071,6 +1296,18 @@ function App() {
     };
 
     const [showModal, setShowModal] = useState(false);
+
+    // Show loading state during initialization
+    if (isInitializing) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     // Render based on current view
     if (authView === "login") {
