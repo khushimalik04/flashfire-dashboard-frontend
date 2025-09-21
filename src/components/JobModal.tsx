@@ -152,6 +152,8 @@ async function persistOptimizedResumeToUser({
                 jobRole: entry.jobRole ?? "",
                 jobId: entry.jobId ?? "",
                 jobLink: entry.jobLink ?? "",
+                name : entry.jobRole,
+                createdAt : Date.now()
             },
         };
 
