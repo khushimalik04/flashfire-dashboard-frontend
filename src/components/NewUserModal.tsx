@@ -267,6 +267,7 @@ function FileInput({
           className="block w-full cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-gradient-to-r file:from-orange-500 file:to-rose-600 file:px-4 file:py-2 file:text-white hover:file:opacity-90 transition-all duration-200 hover:border-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           accept=".pdf,.doc,.docx,.txt"
           onChange={async (e) => {
+            if (uploading) return;
             const f = e.currentTarget.files?.[0] ?? null;
             if (!f) {
               onFileChange(null);
@@ -554,7 +555,10 @@ const submitForm = async () => {
     });
 
     const resJson = await res.json();
-
+    if(resJson.userProfile){
+      localStorage.setItem('welcomeShown', 'true');
+      setUserProfileFormVisibility(false);
+    }
     // ✅ only persist when request is OK
     if (!res.ok) throw new Error(JSON.stringify(resJson));
 
@@ -1018,11 +1022,7 @@ const handleSubmit = () => {
             >
               Back
             </button>
-            <button
-              className="inline-flex items-center rounded border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-orange-500 hover:bg-orange-50 transition-colors duration-200"
-            >
-              Save & Continue Later
-            </button>
+            
             {!isLast ? (
               <button
                 onClick={handleNextWithLog}
