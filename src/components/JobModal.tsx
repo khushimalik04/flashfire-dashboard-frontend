@@ -325,9 +325,9 @@ useEffect(() => {
     if (item.type && item.type.startsWith("image/")) {
       const f = item.getAsFile();
       if (f) {
-        // ✅ Replace previous image instead of appending
-        setPastedImages([f]);
-        setPastedPreviews([URL.createObjectURL(f)]);
+        // ✅ Append new image(s) to the existing pasted list
+        setPastedImages((prev) => [...prev, f]);
+        setPastedPreviews((prev) => [...prev, URL.createObjectURL(f)]);
       }
     }
   }
@@ -361,13 +361,13 @@ useEffect(() => {
             }
 
       if (urls.length) {
-  // ✅ Replace instead of appending
-  setAttachments([urls[urls.length - 1]]);
+  // ✅ Append uploaded pasted images to existing attachments
+  setAttachments((prev) => [...(Array.isArray(prev) ? prev : []), ...urls]);
 
                   const resp = await persistAttachmentsToJob({
               jobID,
               userEmail,
-              urls: [urls[urls.length - 1]], // only last one
+              urls, // persist all new URLs
               token,
                     role,
           });
@@ -376,8 +376,8 @@ useEffect(() => {
     setUserJobs(resp.updatedJobs);
     const updated = resp.updatedJobs.find((j) => j.jobID === jobID);
     if (updated?.attachments) {
-      // ✅ Only keep last
-      setAttachments([updated.attachments[updated.attachments.length - 1]]);
+      // ✅ Reflect full attachments array returned by backend
+      setAttachments(updated.attachments);
     }
   }
 }
