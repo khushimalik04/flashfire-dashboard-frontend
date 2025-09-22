@@ -1194,17 +1194,17 @@ export default function JobModal({
                             </div>
                         </div>
                         {role == "operations" ? (
-                            <button
-                                onClick={() => {
-                                    window.open(
-                                        `/optimize/${jobDetails._id}?view=editor`,
-                                        "_blank"
-                                    );
-                                }}
-                                className="hover:bg-orange-900 hover:bg-opacity-20 p-2 rounded-full transition-colors bg-orange-700"
-                            >
-                                Optimize resume
-                            </button>
+                            // <button
+                            //     onClick={() => {
+                            //         window.open(
+                            //             `/optimize/${jobDetails._id}?view=editor`,
+                            //             "_blank"
+                            //         );
+                            //     }}
+                            //     className="hover:bg-orange-900 hover:bg-opacity-20 p-2 rounded-full transition-colors bg-orange-700"
+                            // >
+                            //     Optimize resume
+                            // </button>
                         ) : null}
                         <button
                             onClick={() => setShowJobModal(false)}
@@ -1251,12 +1251,12 @@ export default function JobModal({
                                     icon: TimerIcon,
                                     color: "bg-brown-800 text-orange-700 border-orange-200",
                                 },
-                                {
-                                    id: "changes",
-                                    label: "Changes Made",
-                                    icon: GitCommit,
-                                    color: "bg-brown-800 text-red-700 border-orange-300",
-                                },
+                                // {
+                                //     id: "changes",
+                                //     label: "Changes Made",
+                                //     icon: GitCommit,
+                                //     color: "bg-brown-800 text-red-700 border-orange-300",
+                                // },
                             ].map((section: any) => {
                                 const Icon = section.icon;
                                 const isActive = activeSection === section.id;
@@ -1313,3 +1313,4 @@ export default function JobModal({
         </div>
     );
 }
+
