@@ -1041,7 +1041,11 @@ useEffect(() => {
                             key={idx}
                             src={src}
                             alt={`pasted-${idx}`}
-                            className="w-20 h-20 object-cover rounded-md border"
+                            className="w-20 h-20 object-cover rounded-md border cursor-zoom-in"
+                            onClick={() => {
+                              setSelectedImage(src);
+                              setAttachmentsModalActiveStatus(true);
+                            }}
                           />
                         ))}
                       </div>
@@ -1093,8 +1097,12 @@ useEffect(() => {
                         key={idx}
                         src={url}
                         alt={`Attachment-${idx}`}
-                        className="w-full h-40 object-cover rounded-md border"
+                        className="w-full h-40 object-cover rounded-md border cursor-zoom-in"
                         draggable={false}
+                        onClick={() => {
+                          setSelectedImage(url);
+                          setAttachmentsModalActiveStatus(true);
+                        }}
                       />
                     ))}
                   </div>
