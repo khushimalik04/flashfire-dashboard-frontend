@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Briefcase, FileText, User, LogOut, ChevronDown, Edit2Icon, User2Icon } from 'lucide-react';
+import { Home, Briefcase, FileText, User, LogOut, ChevronDown, Edit2Icon, User2Icon, Gift } from 'lucide-react';
 import { UserContext } from '../state_management/UserContext.tsx';
 import { useUserProfile } from "../state_management/ProfileContext";
 
@@ -72,17 +72,15 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, setUser
           
           {/* Enhanced Logo Section */}
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
-                {/* <FileText className="w-7 h-7 text-white" /> */}
-                <img src="./Logo.png" alt="" className='rounded-xl' />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                  FLASHFIRE
-                </h1>
-                <p className="text-xs text-gray-500 font-medium -mt-1">Complete Workflow Optimization</p>
-              </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
+              {/* <FileText className="w-7 h-7 text-white" /> */}
+              <img src="./Logo.png" alt="" className='rounded-xl' />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                FLASHFIRE
+              </h1>
+              <p className="text-xs text-gray-500 font-medium -mt-1">Complete Workflow Optimization</p>
             </div>
           </div>
           
@@ -104,6 +102,20 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, setUser
                   <span className="hidden sm:block">{label}</span>
                 </Link>
               ))}
+            </div>
+            
+            {/* Refer & Earn Button */}
+            <div className="relative">
+              <button
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                <Gift className="w-4 h-4" />
+                <span className="hidden sm:block">Refer & Earn</span>
+              </button>
+              {/* NEW Badge */}
+              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
+                NEW
+              </div>
             </div>
             
             {/* Enhanced User Profile Section */}
