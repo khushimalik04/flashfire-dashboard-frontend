@@ -2,65 +2,65 @@ export function getTimeAgo(dateString: string): string {
   if (!dateString || typeof dateString !== "string") return "N/A";
 
   try {
+    // Handle ISO strings or any format that Date can parse reliably first
+    // e.g., 2025-08-29T09:28:31.920Z or 2025-08-29T09:28:31
+    if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateString)) {
+      const iso = new Date(dateString);
+      if (!Number.isNaN(iso.getTime())) {
+        return formatFromDate(iso);
+      }
+    }
+
     const parts = dateString.trim().split(",");
-    if (parts.length !== 2) return "Added now" //"N/A";
+    if (parts.length !== 2) {
+      // Last resort: try native Date parser
+      const native = new Date(dateString);
+      if (!Number.isNaN(native.getTime())) return formatFromDate(native);
+      return "N/A";
+    }
 
-    const datePart = parts[0].trim(); // "8/12/2025"
-    const timePart = parts[1].trim(); // "11:33:33 PM"
+    const datePart = parts[0].trim();
+    const timePart = parts[1].trim();
 
-    // Parse date parts
-    let [m1, d1, y1] = datePart.split("/").map(s => Number(s.trim()));
-    if (!m1 || !d1 || !y1 || m1 > 12 || d1 > 31) return "Added now";
-    if (y1 < 100) y1 += 2000; // Handle 2-digit years
+    const [a, b, yRaw] = datePart.split("/").map((s) => Number(s.trim()));
+    if (!a || !b || !yRaw) return "N/A";
+    const y = yRaw < 100 ? yRaw + 2000 : yRaw;
 
-    // Parse time
     const t = to24HourParts(timePart);
     if (!t) return "N/A";
 
-    // Parse as local time (IST)
-    let parsedDate = new Date(y1, m1 - 1, d1, t.h, t.m, t.s || 0);
-    const now = new Date(); // Current time in IST
-    let diffMs = now.getTime() - parsedDate.getTime();
+    // Try MM/DD first when unambiguous, otherwise try both and pick the past one
+    const makeDate = (mm: number, dd: number) => new Date(y, mm - 1, dd, t.h, t.m, t.s || 0);
+    const now = new Date();
 
-    // If MM/DD/YYYY results in a future date, try DD/MM/YYYY
-    if (diffMs < 0) {
-      parsedDate = new Date(y1, d1 - 1, m1, t.h, t.m, t.s || 0);
-      diffMs = now.getTime() - parsedDate.getTime();
+    let candidates: Date[] = [];
+    if (a > 12 && b <= 31) {
+      // Definitely DD/MM/YYYY
+      candidates = [makeDate(b, a)];
+    } else if (b > 12 && a <= 12) {
+      // Definitely MM/DD/YYYY
+      candidates = [makeDate(a, b)];
+    } else {
+      // Ambiguous: try both
+      candidates = [makeDate(a, b), makeDate(b, a)];
     }
 
-    if (diffMs < 0) diffMs = 0; // Clamp future dates to "now"
+    // Select the candidate that is not in the far future; prefer the one in the past
+    let parsedDate = candidates[0];
+    for (const d of candidates) {
+      if (now.getTime() - d.getTime() >= 0) {
+        parsedDate = d;
+        break;
+      }
+    }
 
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHr = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHr / 24);
-    const diffMonth = Math.floor(diffDay / 30); // Approximate
-    const diffYear = Math.floor(diffMonth / 12);
-
-    // Cushion for minor TZ/drift issues (treat up to ~2 hours as "now" if same day)
-const sameDay =
-  parsedDate.getFullYear() === now.getFullYear() &&
-  parsedDate.getMonth() === now.getMonth() &&
-  parsedDate.getDate() === now.getDate();
-
-if (sameDay && Math.floor(diffMin) <= 120) {
-  return "Added now";
-}
-
-
-    if (diffSec < 3600) return "Added now"; // Less than 1 hour
-    if (diffHr < 24) return `Added ${diffHr} hour${diffHr === 1 ? "" : "s"} ago`; // 1 hour to 1 day
-    if (diffDay < 30) return `Added ${diffDay === 1 ? "a" : diffDay} day${diffDay === 1 ? "" : "s"} ago`; // 1 day to 1 month
-    if (diffMonth < 12) return `Added ${diffMonth} month${diffMonth === 1 ? "" : "s"} ago`; // 1 month to 1 year
-    return `Added ${diffYear} year${diffYear === 1 ? "" : "s"} ago`; // More than 1 year
+    return formatFromDate(parsedDate);
   } catch {
     return "N/A";
   }
 }
 
-/** Robust 12h → 24h parser.
- * Accepts "12:40:41 am", "6:09 PM", "06:09:05 pm", etc.
- */
+
 function to24HourParts(input: string): { h: number; m: number; s: number } | null {
   if (!input) return null;
   const s = input.replace(/\s+/g, " ").trim().toUpperCase();
@@ -79,4 +79,24 @@ function to24HourParts(input: string): { h: number; m: number; s: number } | nul
   if (mer === "AM" && h === 12) h = 0;
 
   return { h, m: min, s: sec };
+}
+
+// Shared formatter used by all branches once we have a Date
+function formatFromDate(parsedDate: Date): string {
+  const now = new Date();
+  let diffMs = now.getTime() - parsedDate.getTime();
+  if (diffMs < 0) diffMs = 0;
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+  const diffMonth = Math.floor(diffDay / 30);
+  const diffYear = Math.floor(diffMonth / 12);
+
+  if (diffSec < 3600) return "Added now";
+  if (diffHr < 24) return `Added ${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
+  if (diffDay < 30) return `Added ${diffDay === 1 ? "a" : diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+  if (diffMonth < 12) return `Added ${diffMonth} month${diffMonth === 1 ? "" : "s"} ago`;
+  return `Added ${diffYear} year${diffYear === 1 ? "" : "s"} ago`;
 }
