@@ -870,7 +870,10 @@ export default function DocumentUpload() {
         setIframeError(null);
 
     let defaultUrl: string | null = null;
-if (activeTab === "base") defaultUrl = baseResume[0]?.link || null;
+if (activeTab === "base") {
+  const last = Array.isArray(baseResume) && baseResume.length > 0 ? baseResume[baseResume.length - 1] : null;
+  defaultUrl = (last?.link || last?.url) ?? null;
+}
     else if (activeTab === "optimized") defaultUrl = optimizedList[0]?.url || null;
     else if (activeTab === "cover") defaultUrl = coverList[0]?.url || null;
     else if (activeTab === "transcript") defaultUrl = transcriptList[0]?.url || null;
@@ -1375,7 +1378,7 @@ const DocsTable = ({
             {/* Actions */}
             <div className="col-span-1 flex justify-end gap-2">
               <a
-                href={toRawPdfUrl(it?.url) || it.link}
+                href={toRawPdfUrl(it.link || it.url) || it.link || it.url}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -1550,7 +1553,7 @@ const DocsTable = ({
                                                 category="Base"
                                                 onPick={(it) => {
                                                     setActivePreviewUrl(
-                                                        toRawPdfUrl(it.url)!
+                                                        toRawPdfUrl(it.link || it.url)!
                                                     );
                                                     setPreviewMode(true);
                                                     setIframeError(null);
