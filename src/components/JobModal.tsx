@@ -1085,20 +1085,25 @@ useEffect(() => {
               </div>
 
               {/* Image Grid */}
-              <div className=" h-96 overflow-auto rounded-lg border flex items-center justify-center">
-  {attachments.length > 0 ? (
-    <img
-      src={attachments[attachments.length - 1]} // ✅ only last one
-      alt="Attachment"
-      className="w-full overflow-y-scroll object-contain" // ✅ fills div, scrollable
-      draggable={false} // ✅ prevent drag/click
-    />
-  ) : (
-    <p className="text-sm text-gray-500 italic flex items-center justify-center h-full">
-      No attachment uploaded yet.
-    </p>
-  )}
-</div>
+              <div className="h-96 overflow-auto rounded-lg border p-3">
+                {attachments.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {attachments.map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`Attachment-${idx}`}
+                        className="w-full h-40 object-cover rounded-md border"
+                        draggable={false}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic flex items-center justify-center h-full">
+                    No attachment uploaded yet.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         );
