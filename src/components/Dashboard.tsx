@@ -28,50 +28,79 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
   const { userJobs, setUserJobs, loading } = useUserJobs();
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-const [showWelcome, setShowWelcome] = useState(() => {
-  return localStorage.getItem("showWelcome") === "true";
-});
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return localStorage.getItem("showWelcome") === "true";
+  });
 
+  // Get role from userDetails or context
+  const role = userDetails?.role || 'user';
 
-  async function FetchAllJobs(localToken, localUserDetails) {
-    try {
-      setLoadingDetails(true);
-      const res = await fetch(
-  `${import.meta.env.VITE_API_BASE_URL}/getalljobs?email=${encodeURIComponent(userDetails.email)}`,
-  {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-
-      const data = await res.json();
-      if (res.ok) {
-        setUserJobs(data?.allJobs);
-      } else if (data.message === 'invalid token please login again' || data.message === 'Invalid token or expired') {
-        console.log('Token invalid, attempting refresh...');
-
-        // Try to refresh token
-        if (context?.refreshToken) {
-          const refreshSuccess = await context.refreshToken();
-          if (refreshSuccess) {
-            // Retry the request with new token
-            console.log('Token refreshed, retrying job fetch...');
-            setTimeout(() => FetchAllJobs(context.token, context.userDetails), 100);
-            return;
+  async function FetchAllJobs(localToken: string, localUserDetails: any) {
+    if (role == "operations") {
+      console.log("local storage email : ", localUserDetails.email);
+      try {
+        setLoadingDetails(true);
+        const res = await fetch(
+          `${API_BASE_URL}/operations/getalljobs`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localToken}`,
+            },
+            body: JSON.stringify({ email: localUserDetails.email }),
           }
+        );
+        const data = await res.json();
+        setLoadingDetails(false);
+        if (res.ok) {
+          setUserJobs(data?.allJobs);
+        } else {
+          alert("something is really wrong");
         }
-
-        console.log('Token refresh failed, clearing storage and redirecting to login');
-        localStorage.clear();
-        navigate('/login');
+      } catch (error) {
+        console.log("error while initial fetch data", error);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingDetails(false);
+    } else {
+      try {
+        setLoadingDetails(true);
+        const res = await fetch(`${API_BASE_URL}/getalljobs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localToken}`,
+          },
+          body: JSON.stringify({ email: localUserDetails.email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setUserJobs(data?.allJobs);
+        } else if (
+          data.message === "invalid token please login again" ||
+          data.message === "Invalid token or expired"
+        ) {
+          console.log("Token invalid, attempting refresh...");
+
+          // Try to refresh token
+          if (context?.refreshToken) {
+            const refreshSuccess = await context.refreshToken();
+            if (refreshSuccess) {
+              // Retry the request with new token
+              console.log('Token refreshed, retrying job fetch...');
+              setTimeout(() => FetchAllJobs(context.token || '', context.userDetails), 100);
+              return;
+            }
+          }
+
+          console.log('Token refresh failed, clearing storage and redirecting to login');
+          localStorage.clear();
+          navigate('/login');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingDetails(false);
+      }
     }
   }
 
@@ -81,31 +110,6 @@ const [showWelcome, setShowWelcome] = useState(() => {
       navigate('/login');
       return;
     }
-
-    (async () => {
-      try {
-        const res = await fetch(
-  `${import.meta.env.VITE_API_BASE_URL}/getalljobs?email=${encodeURIComponent(userDetails.email)}`,
-  {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-
-        if (res.status === 404) {
-          // user not found in DB – first login
-          setShowWelcome(true);
-        } else {
-          setShowWelcome(false);
-        }
-      } catch (err) {
-        console.error(err);
-        setShowWelcome(false);
-      }
-    })();
 
     // Check if profile is complete
     if (!isProfileComplete()) {
