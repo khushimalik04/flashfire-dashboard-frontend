@@ -1,7 +1,6 @@
 import React from 'react';
-import { Edit3, Trash2, Calendar, Building } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Job } from '../types';
-import { formatDistanceToNow } from 'date-fns';
 import { getTimeAgo } from '../utils/getTimeAgo';
 interface JobCardProps {
   job: Job;
@@ -21,13 +20,14 @@ const JobCard: React.FC<JobCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  console.log('triggered..');
+  const handleClick = () => {
+    setShowJobModal(true);
+    setSelectedJob(job);
+  };
+
   return (
     <div
-      onClick={() => {
-        setShowJobModal(true);
-        setSelectedJob(job);
-      }}
+      onClick={handleClick}
       draggable
       onDragStart={(e) => onDragStart(e, job)}
       className="bg-white rounded-lg border w-full border-gray-200 p-2 shadow-sm hover:shadow-md transition-all duration-200 cursor-move"

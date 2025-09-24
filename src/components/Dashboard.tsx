@@ -21,6 +21,7 @@ import { useOperationsStore } from "../state_management/Operations.ts";
 import ReferralModal from "./ReferralModal.tsx";
 import ReferralButton from "./ReferralButton.tsx";
 import { generateReferralIdentifier } from "../utils/generateUsername.ts";
+import { useJobsSessionStore } from "../state_management/JobsSessionStore";
 
 const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
     const context = useContext(UserContext);
@@ -39,6 +40,10 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const { role } = useOperationsStore();
+    
+    // Use session storage for analytics
+    const { getDashboardStats, getJobsByStatus } = useJobsSessionStore();
+    const dashboardStats = getDashboardStats();
     // Referral Modal State
     const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
 
@@ -144,10 +149,15 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
             setShowProfileModal(false);
         }
 
-        FetchAllJobs(token, userDetails);
+        // Only fetch if we don't have fresh data in session storage
+        if (userJobs.length === 0) {
+            FetchAllJobs(token, userDetails);
+        }
     }, [token, userDetails, isProfileComplete]);
-    const stats = calculateDashboardStats(userJobs);
-    console.log("stats = ", stats);
+    
+    // Use session storage stats instead of calculating from userJobs
+    const stats = dashboardStats;
+    console.log("stats from session storage = ", stats);
 
     // Helper function to parse dates in various formats
     const parseCustomDate = (dateString: string): Date => {
@@ -371,13 +381,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             </div>
                             <div className="text-right">
                                 <p className="text-3xl font-bold text-gray-900">
-                                    {
-                                        userJobs?.filter((item) =>
-                                            item.currentStatus.startsWith(
-                                                "interviewing"
-                                            )
-                                        ).length
-                                    }
+                                    {stats.interviewing}
                                 </p>
                                 <p className="text-sm font-medium text-gray-500">
                                     Active Interviews
@@ -461,13 +465,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-3xl font-bold text-gray-900">
-                                    {
-                                        userJobs?.filter((item) =>
-                                            item.currentStatus.startsWith(
-                                                "applied"
-                                            )
-                                        ).length
-                                    }
+                                    {stats.applied}
                                 </p>
                                 <p className="text-sm text-gray-600">
                                     Applications Sent
@@ -481,13 +479,7 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg font-semibold text-gray-900">
-                  {(
-                    (
-                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('interviewing')).length +
-                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('offer')).length +
-                      userJobs?.filter(item => item.currentStatus?.toLowerCase().startsWith('rejected')).length
-                    ) / userJobs?.length * 100
-                  ).toFixed(0)}%
+                  {responseRate}%
                 </p>
                 <p className="text-sm text-gray-600">Response Rate</p>
               </div>
@@ -541,44 +533,28 @@ const Dashboard: React.FC = ({ setUserProfileFormVisibility }) => {
                             {
                                 status: "applied",
                                 label: "Applied",
-                                count: userJobs?.filter((item) =>
-                                    item.currentStatus
-                                        ?.toLowerCase()
-                                        .startsWith("applied")
-                                ).length,
+                                count: stats.applied,
                                 color: "bg-blue-500",
                                 icon: FileText,
                             },
                             {
                                 status: "interviewing",
                                 label: "Interviewing",
-                                count: userJobs?.filter((item) =>
-                                    item.currentStatus
-                                        ?.toLowerCase()
-                                        .startsWith("interviewing")
-                                ).length,
+                                count: stats.interviewing,
                                 color: "bg-amber-500",
                                 icon: Users,
                             },
                             {
                                 status: "offer",
                                 label: "Offers",
-                                count: userJobs?.filter((item) =>
-                                    item.currentStatus
-                                        ?.toLowerCase()
-                                        .startsWith("offer")
-                                ).length,
+                                count: stats.offer,
                                 color: "bg-green-500",
                                 icon: CheckCircle,
                             },
                             {
                                 status: "rejected",
                                 label: "Rejected",
-                                count: userJobs?.filter((item) =>
-                                    item.currentStatus
-                                        ?.toLowerCase()
-                                        .startsWith("rejected")
-                                ).length,
+                                count: stats.rejected,
                                 color: "bg-red-500",
                                 icon: XCircle,
                             },

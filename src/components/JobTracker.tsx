@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useContext, Suspense, lazy } from "react";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Job, JobStatus } from "../types";
 const JobForm = lazy(() => import("./JobForm"));
 const JobCard = lazy(() => import("./JobCard"));
 import { UserContext } from "../state_management/UserContext.tsx";
-import { useNavigate } from "react-router-dom";
 import { useUserJobs } from "../state_management/UserJobs.tsx";
 import LoadingScreen from "./LoadingScreen.tsx";
 import { useOperationsStore } from "../state_management/Operations.ts";
 import { toastUtils, toastMessages } from "../utils/toast";
+import { useJobsSessionStore } from "../state_management/JobsSessionStore";
 const JobModal = lazy(() => import("./JobModal.tsx"));
 
 const JOBS_PER_PAGE = 30;
@@ -19,10 +19,10 @@ const JobTracker = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showJobModal, setShowJobModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const { userJobs, setUserJobs, loading } = useUserJobs();
-  const {userDetails, token, setData} = useContext(UserContext);
-  const navigate = useNavigate();
+  const { userJobs, setUserJobs } = useUserJobs();
+  const { userDetails, token } = useContext(UserContext) || {};
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const { updatingJobs, setJobUpdating, setPendingUpdate, clearPendingUpdate } = useJobsSessionStore();
 
   // near other useState hooks
 const [pendingMove, setPendingMove] = useState<{ jobID: string; status: JobStatus } | null>(null);
@@ -272,53 +272,15 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
         }
     };
 
-    const updateJobStatusOptimistically = (
-        jobID: string,
-        newStatus: JobStatus
-    ) => {
-        setUserJobs((currentJobs) => {
-            if (!currentJobs) return currentJobs;
 
-            return currentJobs.map((job) => {
-                if (job.jobID === jobID) {
-                    return {
-                        ...job,
-                        currentStatus:
-                            newStatus +
-                            (role === "operations"
-                                ? " by " + (name || "operations")
-                                : " by user"),
-                        updatedAt: new Date().toLocaleString("en-IN"),
-                    };
-                }
-                return job;
-            });
-        });
-    };
-
-    const revertJobStatusUpdate = (jobID: string, originalStatus: string) => {
-        setUserJobs((currentJobs) => {
-            if (!currentJobs) return currentJobs;
-
-            return currentJobs.map((job) => {
-                if (job.jobID === jobID) {
-                    return {
-                        ...job,
-                        currentStatus: originalStatus,
-                    };
-                }
-                return job;
-            });
-        });
-    };
-
-    const onUpdateJobStatus = async (jobID, status, userDetails) => {
+    const onUpdateJobStatus = async (jobID: string, status: JobStatus, userDetails: any) => {
         const originalJob = userJobs?.find((job) => job.jobID === jobID);
         if (!originalJob) return;
 
         const originalStatus = originalJob.currentStatus;
 
-        updateJobStatusOptimistically(jobID, status);
+        // Mark job as updating
+        setJobUpdating(jobID, true);
 
         try {
             const endpoint =
@@ -346,18 +308,36 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
 
             let resFromServer = await reqToServer.json();
             if (resFromServer.message === "Jobs updated successfully") {
+                // Update session storage with server response
                 setUserJobs(resFromServer?.updatedJobs);
+                // Clear pending update since server confirmed the change
+                clearPendingUpdate(jobID);
                 toastUtils.success("Job status updated successfully!");
                 console.log("Job status updated:", resFromServer?.updatedJobs);
             } else {
-                revertJobStatusUpdate(jobID, originalStatus);
+                // Clear pending update and revert on failure
+                clearPendingUpdate(jobID);
+                setUserJobs((prevJobs) =>
+                    prevJobs.map((j) =>
+                        j.jobID === jobID ? { ...j, currentStatus: originalStatus } : j
+                    )
+                );
                 toastUtils.error("Failed to update job status");
                 console.error("Failed to update job status on server");
             }
         } catch (error) {
             console.error("Error updating job status:", error);
-            revertJobStatusUpdate(jobID, originalStatus);
+            // Clear pending update and revert on network error
+            clearPendingUpdate(jobID);
+            setUserJobs((prevJobs) =>
+                prevJobs.map((j) =>
+                    j.jobID === jobID ? { ...j, currentStatus: originalStatus } : j
+                )
+            );
             toastUtils.error("Network error while updating job status");
+        } finally {
+            // Clear updating state
+            setJobUpdating(jobID, false);
         }
     };
 
@@ -378,12 +358,8 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
     return;
   }
 
-  // ✅ Optimistic UI update
-  setUserJobs((prevJobs) =>
-    prevJobs.map((j) =>
-      j.jobID === jobID ? { ...j, currentStatus: status, updatedAt: new Date().toString() } : j
-    )
-  );
+  // Set pending update to show job in target column immediately
+  setPendingUpdate(jobID, job.currentStatus, status);
 
   // Then update server in background
   onUpdateJobStatus(jobID, status, userDetails);
@@ -514,8 +490,8 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 m-4 w-full">
                     {statusColumns.map(({ status, label, color }) => {
                         const filteredAndSortedJobs =
-                            userJobs
-                                ?.filter((job) => {
+                            (userJobs && Array.isArray(userJobs))
+                                ? userJobs.filter((job) => {
                                     const statusMatch =
                                         job.currentStatus?.startsWith(status);
                                     if (!statusMatch) return false;
@@ -534,7 +510,8 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
                                     (a, b) =>
                                         tsFromUpdatedAt(b.updatedAt) -
                                         tsFromUpdatedAt(a.updatedAt)
-                                ) || [];
+                                )
+                                : [];
 
                         const paginatedJobs = getPaginatedJobs(
                             filteredAndSortedJobs,
@@ -568,22 +545,31 @@ const handleDragStart = (e: React.DragEvent, job: Job) => {
                                 <div className="flex-1 space-y-2">
                                     <Suspense fallback={<LoadingScreen />}>
                                         {paginatedJobs?.map((job) => (
-                                            <JobCard
-                                                showJobModal={showJobModal}
-                                                setShowJobModal={
-                                                    setShowJobModal
-                                                }
-                                                setSelectedJob={setSelectedJob}
-                                                key={job.jobID}
-                                                job={job}
-                                                onDragStart={handleDragStart}
-                                                onEdit={() =>
-                                                    setEditingJob(job)
-                                                }
-                                                onDelete={() =>
-                                                    onDeleteJob(job.jobID)
-                                                }
-                                            />
+                                            <div key={job.jobID} className="relative">
+                                                <JobCard
+                                                    showJobModal={showJobModal}
+                                                    setShowJobModal={
+                                                        setShowJobModal
+                                                    }
+                                                    setSelectedJob={setSelectedJob}
+                                                    job={job}
+                                                    onDragStart={handleDragStart}
+                                                    onEdit={() =>
+                                                        setEditingJob(job)
+                                                    }
+                                                    onDelete={() =>
+                                                        onDeleteJob(job.jobID)
+                                                    }
+                                                />
+                                                {updatingJobs.has(job.jobID) && (
+                                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+                                                        <div className="flex items-center space-x-2 text-blue-600">
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                                            <span className="text-sm font-medium">Updating...</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         ))}
                                     </Suspense>
                                     {filteredAndSortedJobs &&
