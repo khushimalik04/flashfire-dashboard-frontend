@@ -143,7 +143,10 @@ export const UserJobsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Wrapper function to maintain compatibility with existing code
   const setUserJobs = (jobs: Job[] | ((prevJobs: Job[]) => Job[])) => {
     if (typeof jobs === 'function') {
-      setJobs(jobs);
+      // Compute next jobs array from current store value, then set
+      const currentJobs = Array.isArray(userJobs) ? userJobs : [];
+      const nextJobs = jobs(currentJobs);
+      setJobs(nextJobs);
     } else {
       setJobs(jobs);
     }
