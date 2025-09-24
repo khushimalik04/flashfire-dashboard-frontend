@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { UserContext } from './UserContext.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useOperationsStore } from "./Operations.ts";
+import { useJobsSessionStore, useShouldFetchJobs } from './JobsSessionStore';
 
 type Job = any;
 
@@ -23,32 +24,50 @@ export const useUserJobs = () => {
 };
 
 export const UserJobsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userJobs, setUserJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const context = useContext(UserContext);
   const navigate = useNavigate();
   
   const userDetails = context?.userDetails;
   const token = context?.token;
-  useEffect(() => {
-      fetchJobs();
-  }, []);
-  useEffect(() => {
-    if (token && userDetails) {
-      fetchJobs();
-    }
-  }, [token, userDetails]);
   const { role } = useOperationsStore();
+  
+  // Use session storage store
+  const { 
+    jobs: userJobs, 
+    setJobs, 
+    setLoading: setStoreLoading, 
+    setUserEmail,
+    loading: storeLoading 
+  } = useJobsSessionStore();
+  
+  // Check if we need to fetch fresh data
+  const shouldFetch = useShouldFetchJobs(userDetails?.email);
+  
+  useEffect(() => {
+    if (token && userDetails && shouldFetch) {
+      fetchJobs();
+    } else if (userDetails?.email && !shouldFetch) {
+      // Data is fresh in session storage, just set loading to false
+      setLoading(false);
+    }
+  }, [token, userDetails, shouldFetch]);
+  
+  useEffect(() => {
+    if (userDetails?.email) {
+      setUserEmail(userDetails.email);
+    }
+  }, [userDetails?.email, setUserEmail]);
 
   const fetchJobs = async () => {
-    // if (!token || !userDetails) {
-    //   console.log('No token or userDetails available');
-    //   return;
-    // }
     console.log("Role is ", role);
     setLoading(true);
+    setStoreLoading(true);
+    
     try {
       console.log("Fetching jobs...", userDetails.email);
+      let data;
+      
       if (role == "operations") {
         const res = await fetch(
             `${import.meta.env.VITE_API_BASE_URL}/operations/alljobs`,
@@ -58,9 +77,8 @@ export const UserJobsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 body: JSON.stringify({ email: userDetails.email }),
             }
         );
-        const data = await res.json();
+        data = await res.json();
         console.log("got job data", data);
-        setUserJobs(data?.allJobs || []);
       } else {
         console.log("Fetching jobs with token:", token);
         console.log(
@@ -83,7 +101,7 @@ export const UserJobsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log("Response status:", res.status);
         console.log("Response headers:", res.headers);
 
-        const data = await res.json();
+        data = await res.json();
         console.log("Fetched jobs response:", data);
 
         if (
@@ -108,20 +126,34 @@ export const UserJobsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             navigate("/login");
             return;
         }
-
-        console.log("Setting userJobs:", data?.allJobs);
-        setUserJobs(data?.allJobs || []);
       }
+      
+      // Store in session storage
+      console.log("Setting jobs in session storage:", data?.allJobs);
+      setJobs(data?.allJobs || []);
       
     } catch (err) {
       console.error('Error fetching jobs:', err);
     } finally {
       setLoading(false);
+      setStoreLoading(false);
     }
   };
 
+  // Wrapper function to maintain compatibility with existing code
+  const setUserJobs = (jobs: Job[] | ((prevJobs: Job[]) => Job[])) => {
+    if (typeof jobs === 'function') {
+      setJobs(jobs);
+    } else {
+      setJobs(jobs);
+    }
+  };
+
+  // Ensure userJobs is always an array
+  const safeUserJobs = Array.isArray(userJobs) ? userJobs : [];
+
   return (
-    <UserJobsContext.Provider value={{ userJobs, setUserJobs, loading }}>
+    <UserJobsContext.Provider value={{ userJobs: safeUserJobs, setUserJobs, loading }}>
       {children}
     </UserJobsContext.Provider>
   );

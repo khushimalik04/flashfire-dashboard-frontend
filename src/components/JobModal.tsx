@@ -21,6 +21,7 @@ import { getTimeAgo } from "../utils/getTimeAgo.ts";
 import { UserContext } from "../state_management/UserContext";
 import { useUserJobs } from "../state_management/UserJobs.tsx"; // ⬅️ NEW
 import { hasOptimizedResumeLocal } from "../utils/hasOptimizedResumeLocal.ts";
+import { useJobDescriptionLoader } from "../state_management/JobsSessionStore";
 const AttachmentsModal = lazy(() => import("./AttachmentsModal"));
 import ResumeChangesComparison from "./ResumeChangesComparison.tsx";
 import { useOperationsStore } from "../state_management/Operations.ts";
@@ -244,6 +245,7 @@ export default function JobModal({
     const [pasteError, setPasteError] = useState<string | null>(null);
 
     const { setUserJobs } = useUserJobs(); // ⬅️ NEW: global jobs updater
+    const { getJobDescription, isJobDescriptionLoading, loadJobDescription } = useJobDescriptionLoader();
 
     const [attachmentsModalActiveStatus, setAttachmentsModalActiveStatus] =
         useState(false);
@@ -251,6 +253,44 @@ export default function JobModal({
     const [activeSection, setActiveSection] = useState<Sections>(
         initialSection ?? "details"
     );
+
+    // Load job description when modal opens
+    useEffect(() => {
+        if (jobDetails?.jobID && activeSection === 'description') {
+            const cachedDescription = getJobDescription(jobDetails.jobID);
+            if (!cachedDescription && !isJobDescriptionLoading(jobDetails.jobID)) {
+                loadJobDescription(jobDetails.jobID);
+            }
+        }
+    }, [jobDetails?.jobID, activeSection, getJobDescription, isJobDescriptionLoading, loadJobDescription]);
+
+    // Handle keyboard shortcuts for job description copy
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Check for Ctrl + Shift + C
+            if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+                event.preventDefault();
+                
+                // Only copy if we're in the description section and have job description
+                if (activeSection === 'description' && jobDetails?.jobDescription) {
+                    const text = document.querySelector(".job-description-html")?.textContent || "";
+                    if (text.trim()) {
+                        navigator.clipboard.writeText(text);
+                        // Optional: Show a brief notification
+                        console.log("✅ Job description copied to clipboard!");
+                    }
+                }
+            }
+        };
+
+        // Add event listener
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activeSection, jobDetails?.jobDescription]);
 
     // local image grid
     const [attachments, setAttachments] = useState<string[]>(
@@ -854,6 +894,7 @@ useEffect(() => {
             }
           }}
           className="text-sm px-3 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+          title="Copy job description (Ctrl + Shift + C)"
         >
           Copy
         </button>
@@ -861,18 +902,33 @@ useEffect(() => {
     </div>
 
     <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-      {jobDetails?.jobDescription ? (
-        <div
-          className="text-sm text-gray-700 leading-relaxed job-description-html"
-          dangerouslySetInnerHTML={{
-            __html: jobDetails.jobDescription,
-          }}
-        ></div>
-      ) : (
-        <p className="text-gray-500 italic text-sm">
-          No job description available.
-        </p>
-      )}
+      {(() => {
+        const cachedDescription = getJobDescription(jobDetails?.jobID);
+        const description = cachedDescription || jobDetails?.jobDescription;
+        const isLoading = isJobDescriptionLoading(jobDetails?.jobID);
+        
+        if (isLoading) {
+          return (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500 mr-2" />
+              <span className="text-gray-600">Loading job description...</span>
+            </div>
+          );
+        }
+        
+        return description ? (
+          <div
+            className="text-sm text-gray-700 leading-relaxed job-description-html"
+            dangerouslySetInnerHTML={{
+              __html: description,
+            }}
+          ></div>
+        ) : (
+          <p className="text-gray-500 italic text-sm">
+            No job description available.
+          </p>
+        );
+      })()}
     </div>
 
     {/* ✅ Show extracted emails from job description */}
