@@ -883,14 +883,22 @@ useEffect(() => {
     <div className="space-y-4">
   <div className="bg-white rounded-lg border border-gray-200 p-6">
     <div className="flex items-center justify-between mb-4">
-      <h4 className="text-lg font-semibold text-gray-900">Job Description</h4>
-      {jobDetails?.jobDescription && (
-        <button
+    <h4 className="text-lg font-semibold text-gray-900">Job Description</h4>
+      <button
           onClick={() => {
-            const text = document.querySelector(".job-description-html")?.textContent || "";
-            if (text.trim()) {
+            // Try to read from the rendered HTML first
+            const el = document.querySelector(".job-description-html") as HTMLElement | null;
+            let text = (el?.textContent || "").trim();
+
+            // Fallback: use cached or raw description, stripping HTML if present
+            if (!text) {
+              const raw = (getJobDescription(jobDetails?.jobID) || jobDetails?.jobDescription || "").toString();
+              // Strip HTML tags if any
+              text = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+            }
+
+            if (text) {
               navigator.clipboard.writeText(text);
-              // alert("✅ Job description copied to clipboard!");
             }
           }}
           className="text-sm px-3 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
@@ -898,7 +906,6 @@ useEffect(() => {
         >
           Copy
         </button>
-      )}
     </div>
 
     <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
